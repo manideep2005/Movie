@@ -9,7 +9,11 @@
     "routes": [
         {
             "src": "/ws",
-            "dest": "src/app.js"
+            "dest": "src/app.js",
+            "headers": {
+                "Upgrade": "websocket",
+                "Connection": "upgrade"
+            }
         },
         {
             "src": "/(.*)",

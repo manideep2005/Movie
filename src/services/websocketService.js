@@ -8,14 +8,7 @@ class WebSocketService {
     }
 
     initialize(server) {
-        // Check if we're in a serverless environment
-        const isServerless = process.env.VERCEL === '1';
-        
-        if (isServerless) {
-            console.log('Running in serverless environment - WebSocket server not initialized');
-            return;
-        }
-
+        // Initialize WebSocket server
         this.wss = new WebSocket.Server({ 
             server,
             path: '/ws',

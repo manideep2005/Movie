@@ -226,7 +226,8 @@
 
         function connectWebSocket(movieId) {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsUrl = `${protocol}//${window.location.host}/ws${movieId ? `?movieId=${movieId}` : ''}`;
+            const host = window.location.host;
+            const wsUrl = `${protocol}//${host}/ws${movieId ? `?movieId=${movieId}` : ''}`;
             
             if (socket && socket.readyState !== WebSocket.CLOSED) {
                 console.log('Socket is already connected or connecting');
