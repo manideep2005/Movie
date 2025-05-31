@@ -8,24 +8,53 @@ class WebSocketService {
     }
 
     initialize(server) {
-        // Initialize WebSocket server with more flexible options
-        const options = {
-            server,
-            path: '/ws',
-            clientTracking: true,
-            perMessageDeflate: false,
-            verifyClient: (info, cb) => {
-                // Allow all connections
-                cb(true);
-            }
-        };
+        try {
+            // Initialize WebSocket server with more flexible options
+            const options = {
+                server,
+                path: '/ws',
+                clientTracking: true,
+                perMessageDeflate: false,
+                handleProtocols: () => 'websocket',
+                verifyClient: (info, cb) => {
+                    // Allow all connections
+                    cb(true);
+                }
+            };
 
-        // Create WebSocket server
-        this.wss = new WebSocket.Server(options);
+            // Create WebSocket server
+            this.wss = new WebSocket.Server(options);
 
-        console.log('🔌 WebSocket server initialized with options:', options);
+            console.log('🔌 WebSocket server initialized with options:', {
+                path: options.path,
+                clientTracking: options.clientTracking,
+                perMessageDeflate: options.perMessageDeflate
+            });
 
-        this.wss.on('connection', (ws, req) => {
+            this.wss.on('connection', this.handleConnection.bind(this));
+
+            // Handle server errors
+            this.wss.on('error', (error) => {
+                console.error('WebSocket server error:', error);
+                // Try to recover from errors
+                if (this.wss) {
+                    try {
+                        this.wss.close(() => {
+                            console.log('WebSocket server closed, attempting to reinitialize...');
+                            setTimeout(() => this.initialize(server), 5000);
+                        });
+                    } catch (closeError) {
+                        console.error('Error closing WebSocket server:', closeError);
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Failed to initialize WebSocket server:', error);
+        }
+    }
+
+    handleConnection(ws, req) {
+        try {
             const parameters = url.parse(req.url, true).query;
             const movieId = parameters.movieId ? parseInt(parameters.movieId) : null;
 
@@ -41,15 +70,11 @@ class WebSocketService {
             }
 
             // Send initial connection success message
-            try {
-                ws.send(JSON.stringify({ 
-                    type: 'connection', 
-                    status: 'connected',
-                    movieId 
-                }));
-            } catch (error) {
-                console.error('Failed to send initial connection message:', error);
-            }
+            ws.send(JSON.stringify({ 
+                type: 'connection', 
+                status: 'connected',
+                movieId 
+            }));
 
             // Handle incoming messages
             ws.on('message', (message) => {
@@ -77,12 +102,9 @@ class WebSocketService {
             ws.on('error', (error) => {
                 console.error('WebSocket error:', error);
             });
-        });
-
-        // Handle server errors
-        this.wss.on('error', (error) => {
-            console.error('WebSocket server error:', error);
-        });
+        } catch (error) {
+            console.error('Error in WebSocket connection handler:', error);
+        }
     }
 
     handleMessage(ws, data) {

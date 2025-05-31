@@ -308,12 +308,32 @@ app.use((err, req, res, next) => {
 });
 
 // Start server
-server.listen(PORT, () => {
-    console.log(`🚀 Server running on http://localhost:${PORT}`);
-    console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`📍 Platform: ${isVercel ? 'Vercel' : 'Local'}`);
-    console.log('✉️ Email service is configured with Gmail SMTP');
-    console.log('🔌 WebSocket server is running');
-});
+const startServer = () => {
+    try {
+        server.listen(PORT, () => {
+            console.log(`🚀 Server running on http://localhost:${PORT}`);
+            console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+            console.log(`📍 Platform: ${isVercel ? 'Vercel' : 'Local'}`);
+            console.log('✉️ Email service is configured with Gmail SMTP');
+            console.log('🔌 WebSocket server is running');
+        });
+
+        server.on('error', (error) => {
+            if (error.code === 'EADDRINUSE') {
+                console.error(`❌ Port ${PORT} is already in use`);
+                console.log('🔄 Trying alternative port...');
+                server.listen(0); // Let OS assign a random available port
+            } else {
+                console.error('❌ Server error:', error);
+                process.exit(1);
+            }
+        });
+    } catch (error) {
+        console.error('❌ Failed to start server:', error);
+        process.exit(1);
+    }
+};
+
+startServer();
 
 module.exports = app; 
