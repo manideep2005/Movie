@@ -8,10 +8,14 @@
     ],
     "routes": [
         {
-            "src": "/ws",
+            "src": "/ws/(.*)",
             "dest": "src/app.js",
+            "check": true,
             "headers": {
-                "Upgrade": "websocket",
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+                "Access-Control-Allow-Headers": "X-Requested-With, Content-Type, Accept",
+                "Upgrade": "$http_upgrade",
                 "Connection": "upgrade"
             }
         },

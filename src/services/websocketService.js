@@ -8,21 +8,29 @@ class WebSocketService {
     }
 
     initialize(server) {
-        // Initialize WebSocket server
-        this.wss = new WebSocket.Server({ 
+        // Initialize WebSocket server with more flexible options
+        const options = {
             server,
             path: '/ws',
             clientTracking: true,
-            perMessageDeflate: false
-        });
+            perMessageDeflate: false,
+            verifyClient: (info, cb) => {
+                // Allow all connections
+                cb(true);
+            }
+        };
 
-        console.log('🔌 WebSocket server initialized');
+        // Create WebSocket server
+        this.wss = new WebSocket.Server(options);
+
+        console.log('🔌 WebSocket server initialized with options:', options);
 
         this.wss.on('connection', (ws, req) => {
             const parameters = url.parse(req.url, true).query;
             const movieId = parameters.movieId ? parseInt(parameters.movieId) : null;
 
             console.log(`🔌 New WebSocket connection for movie ${movieId || 'none'}`);
+            console.log('Connection headers:', req.headers);
 
             // Add client to movie room if movieId is provided
             if (movieId) {
@@ -33,11 +41,15 @@ class WebSocketService {
             }
 
             // Send initial connection success message
-            ws.send(JSON.stringify({ 
-                type: 'connection', 
-                status: 'connected',
-                movieId 
-            }));
+            try {
+                ws.send(JSON.stringify({ 
+                    type: 'connection', 
+                    status: 'connected',
+                    movieId 
+                }));
+            } catch (error) {
+                console.error('Failed to send initial connection message:', error);
+            }
 
             // Handle incoming messages
             ws.on('message', (message) => {

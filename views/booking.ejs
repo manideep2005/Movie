@@ -237,68 +237,73 @@
             updateConnectionStatus('connecting', '🔄 Connecting...');
             console.log('Attempting to connect to WebSocket:', wsUrl);
             
-            socket = new WebSocket(wsUrl);
-            
-            socket.onopen = () => {
-                console.log('WebSocket connected successfully');
-                updateConnectionStatus('connected', '🟢 Connected');
-                reconnectAttempts = 0;
-
-                // Join movie room if movieId is provided
-                if (movieId) {
-                    socket.send(JSON.stringify({
-                        type: 'join_movie',
-                        movieId
-                    }));
-                }
-            };
-            
-            socket.onclose = (event) => {
-                console.log('WebSocket disconnected:', event.code, event.reason);
-                updateConnectionStatus('disconnected', '🔴 Disconnected');
+            try {
+                socket = new WebSocket(wsUrl);
                 
-                if (reconnectAttempts < maxReconnectAttempts) {
-                    reconnectAttempts++;
-                    const message = `🔄 Reconnecting (${reconnectAttempts}/${maxReconnectAttempts})...`;
-                    updateConnectionStatus('connecting', message);
-                    console.log(message);
-                    setTimeout(() => connectWebSocket(movieId), reconnectDelay);
-                } else {
-                    console.log('Max reconnection attempts reached');
-                    updateConnectionStatus('error', '❌ Connection Failed');
-                }
-            };
-            
-            socket.onerror = (error) => {
-                console.error('WebSocket error:', error);
-                updateConnectionStatus('error', '⚠️ Connection Error');
-            };
-            
-            socket.onmessage = (event) => {
-                try {
-                    const data = JSON.parse(event.data);
-                    console.log('Received message:', data);
-                    
-                    switch (data.type) {
-                        case 'connection':
-                            handleConnectionStatus(data);
-                            break;
-                        case 'seat_blocked':
-                            handleSeatBlocked(data.seats);
-                            break;
-                        case 'seat_booked':
-                            handleSeatBooked(data.seats);
-                            break;
-                        case 'seat_update':
-                            handleSeatUpdate(data.occupiedSeats, data.blockedSeats);
-                            break;
-                        default:
-                            console.log('Unknown message type:', data.type);
+                socket.onopen = () => {
+                    console.log('WebSocket connected successfully');
+                    updateConnectionStatus('connected', '🟢 Connected');
+                    reconnectAttempts = 0;
+
+                    // Join movie room if movieId is provided
+                    if (movieId) {
+                        socket.send(JSON.stringify({
+                            type: 'join_movie',
+                            movieId
+                        }));
                     }
-                } catch (error) {
-                    console.error('Failed to parse message:', error);
-                }
-            };
+                };
+                
+                socket.onclose = (event) => {
+                    console.log('WebSocket disconnected:', event.code, event.reason);
+                    updateConnectionStatus('disconnected', '🔴 Disconnected');
+                    
+                    if (reconnectAttempts < maxReconnectAttempts) {
+                        reconnectAttempts++;
+                        const message = `🔄 Reconnecting (${reconnectAttempts}/${maxReconnectAttempts})...`;
+                        updateConnectionStatus('connecting', message);
+                        console.log(message);
+                        setTimeout(() => connectWebSocket(movieId), reconnectDelay);
+                    } else {
+                        console.log('Max reconnection attempts reached');
+                        updateConnectionStatus('error', '❌ Connection Failed');
+                    }
+                };
+                
+                socket.onerror = (error) => {
+                    console.error('WebSocket error:', error);
+                    updateConnectionStatus('error', '⚠️ Connection Error');
+                };
+                
+                socket.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        console.log('Received message:', data);
+                        
+                        switch (data.type) {
+                            case 'connection':
+                                handleConnectionStatus(data);
+                                break;
+                            case 'seat_blocked':
+                                handleSeatBlocked(data.seats);
+                                break;
+                            case 'seat_booked':
+                                handleSeatBooked(data.seats);
+                                break;
+                            case 'seat_update':
+                                handleSeatUpdate(data.occupiedSeats, data.blockedSeats);
+                                break;
+                            default:
+                                console.log('Unknown message type:', data.type);
+                        }
+                    } catch (error) {
+                        console.error('Failed to parse message:', error);
+                    }
+                };
+            } catch (error) {
+                console.error('Failed to create WebSocket connection:', error);
+                updateConnectionStatus('error', '❌ Connection Failed');
+            }
         }
 
         function handleConnectionStatus(data) {
