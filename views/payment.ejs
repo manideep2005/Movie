@@ -38,10 +38,10 @@
             text-align: center;
             margin-bottom: 20px;
         }
-        #paymentForm button {
+        #confirmButton {
             transition: all 0.3s ease;
         }
-        #paymentForm button:disabled {
+        #confirmButton:disabled {
             background-color: #6c757d;
             border-color: #6c757d;
             cursor: not-allowed;
@@ -70,7 +70,7 @@
                     <span>₹<%= booking.amount %></span>
                 </div>
             </div>
-            <form id="paymentForm" action="/payment-preview-success" method="POST">
+            <form method="POST" action="/payment-preview-success">
                 <button type="submit" class="btn btn-primary w-100" id="confirmButton">
                     Confirm Payment (Preview)
                 </button>
@@ -82,7 +82,6 @@
         let timeLeft = 600; // 10 minutes in seconds
         const timerElement = document.getElementById('timer');
         const confirmButton = document.getElementById('confirmButton');
-        const paymentForm = document.getElementById('paymentForm');
 
         const timerInterval = setInterval(() => {
             timeLeft--;
@@ -97,33 +96,10 @@
             }
         }, 1000);
 
-        // Handle form submission
-        paymentForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
+        // Simple form submission handling
+        confirmButton.addEventListener('click', () => {
             confirmButton.disabled = true;
             confirmButton.textContent = 'Processing...';
-
-            try {
-                const response = await fetch('/payment-preview-success', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
-                    credentials: 'include'
-                });
-
-                if (response.redirected) {
-                    window.location.href = response.url;
-                } else if (!response.ok) {
-                    throw new Error('Payment failed');
-                }
-            } catch (error) {
-                console.error('Payment error:', error);
-                alert('Payment failed. Please try again.');
-                confirmButton.disabled = false;
-                confirmButton.textContent = 'Confirm Payment (Preview)';
-            }
         });
     </script>
 </body>
