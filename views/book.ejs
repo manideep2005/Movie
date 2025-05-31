@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(to right, #1e3c72, #2a5298);
+            color: white;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 40px auto;
+            padding: 30px;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border-radius: 6px;
+            border: none;
+            background-color: rgba(255, 255, 255, 0.9);
+            color: #333;
+            box-sizing: border-box;
+        }
+
+        button {
+            width: 100%;
+            padding: 15px;
+            background-color: #00b894;
+            border: none;
+            color: white;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #019875;
+        }
+
+        .error {
+            background-color: #ff7675;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: 20px;
+            color: white;
+            text-decoration: none;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎬 Book Your Movie Ticket</h1>
+        
+        <% if (error) { %>
+            <div class="error">
+                <%= error %>
+            </div>
+        <% } %>
+
+        <form action="/book" method="POST">
+            <div class="form-group">
+                <label for="username">👤 Your Name:</label>
+                <input type="text" id="username" name="username" required>
+            </div>
+
+            <div class="form-group">
+                <label for="email">📧 Your Email:</label>
+                <input type="email" id="email" name="email" required>
+            </div>
+
+            <div class="form-group">
+                <label for="movie">🎞️ Select Movie:</label>
+                <select id="movie" name="movie" required>
+                    <option value="">Choose a movie...</option>
+                    <% movies.forEach(movie => { %>
+                        <option value="<%= movie.name %>"><%= movie.name %> - $<%= movie.price %></option>
+                    <% }); %>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="seats">💺 Number of Seats:</label>
+                <input type="number" id="seats" name="seats" min="1" max="10" required>
+            </div>
+
+            <div class="form-group">
+                <label for="date">📅 Select Date:</label>
+                <input type="date" id="date" name="date" required>
+            </div>
+
+            <button type="submit">Book Now</button>
+        </form>
+
+        <a href="/" class="back-link">← Back to Home</a>
+    </div>
+</body>
+</html> 

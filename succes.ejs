@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title><%= title %></title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(120deg, #1e3c72, #2a5298);
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .container {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 3rem;
+      border-radius: 12px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+      text-align: center;
+    }
+    h1 {
+      color: #00b894;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎉 Booking Successful!</h1>
+    <p>Your ticket confirmation email has been sent to the receiver.</p>
+    <a href="/book" style="color: #00b894; text-decoration: underline;">Book Another Ticket</a>
+  </div>
+</body>
+</html>
