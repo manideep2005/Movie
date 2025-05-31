@@ -221,7 +221,7 @@ app.get('/test-email', async (req, res) => {
     const testBooking = {
       _id: 'TEST-' + Date.now(),
       name: 'Test User',
-      email: 'manideep.gonugunta1802@gmail.com',
+      email: 'w25087926@gmail.com',
       movie: 'Test Movie',
       seats: ['A1', 'A2'],
       amount: 400,

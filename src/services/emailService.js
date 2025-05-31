@@ -7,8 +7,8 @@ const transporter = nodemailer.createTransport({
     port: 465,
     secure: true, // use SSL
     auth: {
-        user: process.env.EMAIL_USER || 'manideep.gonugunta1802@gmail.com',
-        pass: process.env.EMAIL_PASS || 'keqvspawutwehxnz'
+        user: process.env.EMAIL_USER || 'w25087926@gmail.com',
+        pass: process.env.EMAIL_PASS || 'ncrewxbcwgxmpxcq'
     },
     tls: {
         rejectUnauthorized: false // Accept self-signed certificates
@@ -73,7 +73,7 @@ const sendBookingConfirmation = async (booking) => {
                 const mailOptions = {
                     from: {
                         name: 'Cinema Booking',
-                        address: process.env.EMAIL_USER || 'manideep.gonugunta1802@gmail.com'
+                        address: process.env.EMAIL_USER || 'w25087926@gmail.com'
                     },
                     to: booking.email,
                     subject: `🎬 Booking Confirmed - ${booking.movie}`,

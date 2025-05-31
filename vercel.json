@@ -14,6 +14,8 @@
     ],
     "env": {
         "NODE_ENV": "production",
-        "BASE_URL": "https://movie-gilt-six.vercel.app/"
+        "BASE_URL": "https://movie-gilt-six.vercel.app",
+        "SESSION_SECRET": "your-secret-key",
+        "VERCEL": "1"
     }
 } 
