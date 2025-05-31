@@ -3,7 +3,7 @@
     "builds": [
         {
             "src": "src/app.js",
-            "use": "@vercel/node"
+            "use": "@vercel/node@latest"
         }
     ],
     "routes": [
@@ -13,6 +13,7 @@
         }
     ],
     "env": {
-        "BASE_URL": "https://movie-booking-sage.vercel.app"
+        "NODE_ENV": "production",
+        "BASE_URL": "https://movie-booking-sage.vercel.app/"
     }
 } 
