@@ -327,6 +327,30 @@ app.post('/start-booking', (req, res) => {
     }
 });
 
+// Seat status polling endpoint
+app.get('/seat-status', (req, res) => {
+    try {
+        const movieId = parseInt(req.query.movieId);
+        if (!movieId) {
+            return res.status(400).json({ error: 'Movie ID is required' });
+        }
+
+        // Get current seat status
+        const { occupiedSeats, blockedSeats } = seatService.getSeatsStatus(movieId);
+        
+        res.json({
+            success: true,
+            movieId,
+            occupiedSeats,
+            blockedSeats,
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error('Error getting seat status:', error);
+        res.status(500).json({ error: 'Failed to get seat status' });
+    }
+});
+
 // 404 handler
 app.use((req, res) => {
   res.status(404).render('error', {

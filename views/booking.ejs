@@ -202,7 +202,8 @@
         let socket;
         let reconnectAttempts = 0;
         const maxReconnectAttempts = 5;
-        const reconnectDelay = 3000; // 3 seconds
+        let isPolling = false;
+        const pollingInterval = 3000; // 3 seconds
 
         function updateConnectionStatus(status, message) {
             const statusElement = document.getElementById('connection-status');
@@ -224,24 +225,53 @@
             }
         }
 
+        function startPolling(movieId) {
+            if (isPolling) return;
+            isPolling = true;
+            console.log('📡 Starting polling fallback');
+            updateConnectionStatus('connected', '🔄 Using polling');
+
+            // Function to fetch seat updates
+            async function pollSeats() {
+                if (!isPolling) return;
+                
+                try {
+                    const response = await fetch(`/seat-status?movieId=${movieId}`, {
+                        method: 'GET',
+                        headers: {
+                            'Accept': 'application/json'
+                        },
+                        credentials: 'include'
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        handleSeatUpdate(data.occupiedSeats, data.blockedSeats);
+                    }
+                } catch (error) {
+                    console.error('Polling error:', error);
+                }
+
+                // Schedule next poll
+                setTimeout(() => pollSeats(), pollingInterval);
+            }
+
+            // Start polling
+            pollSeats();
+        }
+
         function connectWebSocket(movieId) {
             // Get the base URL from the environment
             const isProduction = window.location.hostname.includes('vercel.app');
-            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            let wsUrl;
-
+            
+            // If we're on Vercel, use polling instead of WebSocket
             if (isProduction) {
-                // For Vercel deployment
-                wsUrl = `${wsProtocol}//${window.location.host}/ws`;
-            } else {
-                // For local development
-                wsUrl = `ws://localhost:3001/ws`;
+                startPolling(movieId);
+                return;
             }
 
-            // Add movieId as query parameter if provided
-            if (movieId) {
-                wsUrl += `?movieId=${movieId}`;
-            }
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `ws://localhost:3001/ws${movieId ? `?movieId=${movieId}` : ''}`;
 
             if (socket && socket.readyState !== WebSocket.CLOSED) {
                 console.log('Socket is already connected or connecting');
@@ -252,25 +282,18 @@
             console.log('Attempting to connect to WebSocket:', wsUrl);
             
             try {
-                // Create new WebSocket connection with error handling
                 socket = new WebSocket(wsUrl);
                 
                 socket.onopen = () => {
-                    console.log('WebSocket connected successfully to:', wsUrl);
+                    console.log('WebSocket connected successfully');
                     updateConnectionStatus('connected', '🟢 Connected');
                     reconnectAttempts = 0;
 
-                    // Join movie room if movieId is provided
                     if (movieId) {
-                        try {
-                            socket.send(JSON.stringify({
-                                type: 'join_movie',
-                                movieId
-                            }));
-                            console.log('Joined movie room:', movieId);
-                        } catch (error) {
-                            console.error('Failed to join movie room:', error);
-                        }
+                        socket.send(JSON.stringify({
+                            type: 'join_movie',
+                            movieId
+                        }));
                     }
                 };
                 
@@ -278,35 +301,22 @@
                     console.log('WebSocket disconnected:', event.code, event.reason);
                     updateConnectionStatus('disconnected', '🔴 Disconnected');
                     
-                    if (reconnectAttempts < maxReconnectAttempts) {
+                    if (!isProduction && reconnectAttempts < maxReconnectAttempts) {
                         reconnectAttempts++;
-                        const delay = Math.min(1000 * Math.pow(2, reconnectAttempts - 1), 30000); // Cap at 30 seconds
+                        const delay = Math.min(1000 * Math.pow(2, reconnectAttempts - 1), 30000);
                         const message = `🔄 Reconnecting (${reconnectAttempts}/${maxReconnectAttempts})...`;
                         updateConnectionStatus('connecting', message);
-                        console.log(message, 'Next attempt in', delay, 'ms');
+                        console.log(message);
                         setTimeout(() => connectWebSocket(movieId), delay);
                     } else {
-                        console.log('Max reconnection attempts reached');
-                        updateConnectionStatus('error', '❌ Connection Failed');
-                        // Reset reconnection attempts after a longer delay
-                        setTimeout(() => {
-                            reconnectAttempts = 0;
-                            connectWebSocket(movieId);
-                        }, 60000); // Try again after 1 minute
+                        // Fall back to polling if WebSocket fails
+                        startPolling(movieId);
                     }
                 };
                 
                 socket.onerror = (error) => {
                     console.error('WebSocket error:', error);
                     updateConnectionStatus('error', '⚠️ Connection Error');
-                    // Log additional connection details for debugging
-                    console.log('Connection Details:', {
-                        url: wsUrl,
-                        readyState: socket.readyState,
-                        protocol: socket.protocol,
-                        host: window.location.host,
-                        isProduction: isProduction
-                    });
                 };
                 
                 socket.onmessage = (event) => {
@@ -337,8 +347,8 @@
             } catch (error) {
                 console.error('Failed to create WebSocket connection:', error);
                 updateConnectionStatus('error', '❌ Connection Failed');
-                // Try to reconnect after a delay
-                setTimeout(() => connectWebSocket(movieId), 5000);
+                // Fall back to polling
+                startPolling(movieId);
             }
         }
 
