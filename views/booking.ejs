@@ -250,6 +250,7 @@
         const maxReconnectAttempts = 5;
         let isPolling = false;
         const pollingInterval = 3000; // 3 seconds
+        let selectedSeatsMap = new Map(); // Store selected seats
 
         function updateConnectionStatus(status, message) {
             const statusElement = document.getElementById('connection-status');
@@ -292,7 +293,10 @@
                     
                     if (response.ok) {
                         const data = await response.json();
-                        handleSeatUpdate(data.occupiedSeats, data.blockedSeats);
+                        // Keep selected seats when updating
+                        const currentSelectedSeats = [...document.querySelectorAll('.seat.selected')]
+                            .map(seat => seat.dataset.seat);
+                        handleSeatUpdate(data.occupiedSeats, data.blockedSeats, currentSelectedSeats);
                     }
                 } catch (error) {
                     console.error('Polling error:', error);
@@ -404,15 +408,30 @@
             }
         }
 
-        function handleSeatUpdate(newOccupiedSeats, newBlockedSeats) {
+        function handleSeatUpdate(newOccupiedSeats, newBlockedSeats, currentSelectedSeats = []) {
             document.querySelectorAll('.seat').forEach(seat => {
                 const seatId = seat.dataset.seat;
+                const wasSelected = seat.classList.contains('selected');
+                
+                // Reset classes but preserve selection
                 seat.className = 'seat';
                 
                 if (newOccupiedSeats.includes(seatId)) {
                     seat.classList.add('occupied');
+                    // If seat was selected but is now occupied, remove from selection
+                    if (wasSelected) {
+                        selectedSeatsMap.delete(seatId);
+                    }
                 } else if (newBlockedSeats.includes(seatId)) {
                     seat.classList.add('temporarily-blocked');
+                    // If seat was selected but is now blocked, remove from selection
+                    if (wasSelected) {
+                        selectedSeatsMap.delete(seatId);
+                    }
+                } else if (selectedSeatsMap.has(seatId) || currentSelectedSeats.includes(seatId)) {
+                    // Restore selection if seat was previously selected and is still available
+                    seat.classList.add('selected');
+                    selectedSeatsMap.set(seatId, true);
                 }
             });
             updateSelectedCount();
@@ -457,8 +476,7 @@
         }
 
         function updateSelectedCount() {
-            const selectedSeats = document.querySelectorAll('.row .seat.selected');
-            const selectedSeatsArray = [...selectedSeats].map(seat => seat.dataset.seat);
+            const selectedSeatsArray = Array.from(selectedSeatsMap.keys());
             const pricePerSeat = getSelectedMoviePrice();
             
             selectedSeatsElement.textContent = selectedSeatsArray.length > 0 ? selectedSeatsArray.join(', ') : 'None selected';
@@ -492,7 +510,14 @@
                 !e.target.classList.contains('occupied') && 
                 !e.target.classList.contains('temporarily-blocked')) {
                 
-                e.target.classList.toggle('selected');
+                const seatId = e.target.dataset.seat;
+                if (e.target.classList.contains('selected')) {
+                    e.target.classList.remove('selected');
+                    selectedSeatsMap.delete(seatId);
+                } else {
+                    e.target.classList.add('selected');
+                    selectedSeatsMap.set(seatId, true);
+                }
                 updateSelectedCount();
             }
         });
@@ -500,6 +525,9 @@
         movieSelect.addEventListener('change', () => {
             const selectedOption = movieSelect.options[movieSelect.selectedIndex];
             const movieId = parseInt(selectedOption.dataset.movieId);
+            
+            // Clear selected seats when changing movies
+            selectedSeatsMap.clear();
             
             // Close existing connection if any
             if (socket) {
@@ -512,8 +540,7 @@
         });
 
         bookBtn.addEventListener('click', async () => {
-            const selectedSeats = document.querySelectorAll('.row .seat.selected');
-            const seats = [...selectedSeats].map(seat => seat.dataset.seat);
+            const seats = Array.from(selectedSeatsMap.keys());
             const name = document.getElementById('name').value.trim();
             const email = document.getElementById('email').value.trim();
             const selectedOption = movieSelect.options[movieSelect.selectedIndex];
@@ -582,6 +609,8 @@
                 
                 if (response.ok && data.success) {
                     console.log('Booking successful, redirecting to:', data.redirectUrl);
+                    // Clear selected seats before redirecting
+                    selectedSeatsMap.clear();
                     // Add a small delay to ensure session is saved
                     setTimeout(() => {
                         window.location.href = data.redirectUrl;

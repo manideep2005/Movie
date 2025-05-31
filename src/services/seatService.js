@@ -1,105 +1,108 @@
 const websocketService = require('./websocketService');
-const seats = new Map(); // Store seat status for all movies
+const occupiedSeatsMap = new Map();
+const blockedSeatsMap = new Map();
+const blockTimeout = 5 * 60 * 1000; // 5 minutes
 
-// Function to block seats temporarily (for 10 minutes during booking process)
-const blockSeats = (movieId, selectedSeats) => {
-    const key = `${movieId}`;
-    if (!seats.has(key)) {
-        seats.set(key, new Map());
-    }
+function cleanupBlockedSeats(movieId) {
+    if (!blockedSeatsMap.has(movieId)) return;
     
-    const movieSeats = seats.get(key);
-    const blockingTime = Date.now();
-    
-    selectedSeats.forEach(seat => {
-        movieSeats.set(seat, {
-            blocked: true,
-            timestamp: blockingTime
-        });
-    });
-
-    // Notify all clients about the blocked seats
-    websocketService.handleBlockSeats(movieId, selectedSeats);
-
-    // Set timeout to automatically unblock seats after 10 minutes
-    setTimeout(() => {
-        selectedSeats.forEach(seat => {
-            const seatInfo = movieSeats.get(seat);
-            if (seatInfo && seatInfo.timestamp === blockingTime) {
-                movieSeats.delete(seat);
-            }
-        });
-        // Notify clients about the updated seat status
-        const { occupiedSeats, blockedSeats } = getSeatsStatus(movieId);
-        websocketService.updateSeatStatus(movieId, occupiedSeats, blockedSeats);
-    }, 10 * 60 * 1000); // 10 minutes
-};
-
-// Function to check if seats are available
-const checkSeatsAvailability = (movieId, selectedSeats) => {
-    const key = `${movieId}`;
-    if (!seats.has(key)) {
-        return true; // If no seats are blocked, all seats are available
-    }
-
-    const movieSeats = seats.get(key);
+    const blockedSeats = blockedSeatsMap.get(movieId);
     const now = Date.now();
+    
+    // Remove expired blocks
+    for (const [seat, timestamp] of blockedSeats.entries()) {
+        if (now - timestamp > blockTimeout) {
+            blockedSeats.delete(seat);
+        }
+    }
+    
+    // Clean up if no blocked seats remain
+    if (blockedSeats.size === 0) {
+        blockedSeatsMap.delete(movieId);
+    }
+}
 
-    // Check each selected seat
-    for (const seat of selectedSeats) {
-        const seatInfo = movieSeats.get(seat);
-        if (seatInfo) {
-            // If seat is blocked and blocking time is less than 10 minutes ago
-            if (seatInfo.blocked && (now - seatInfo.timestamp) < 10 * 60 * 1000) {
-                return false;
-            }
+function getSeatsStatus(movieId) {
+    cleanupBlockedSeats(movieId);
+    
+    return {
+        occupiedSeats: Array.from(occupiedSeatsMap.get(movieId) || []),
+        blockedSeats: Array.from(blockedSeatsMap.get(movieId)?.keys() || [])
+    };
+}
+
+function checkSeatsAvailability(movieId, seats) {
+    cleanupBlockedSeats(movieId);
+    
+    const occupiedSeats = occupiedSeatsMap.get(movieId) || new Set();
+    const blockedSeats = blockedSeatsMap.get(movieId) || new Map();
+    
+    return seats.every(seat => 
+        !occupiedSeats.has(seat) && !blockedSeats.has(seat)
+    );
+}
+
+function blockSeats(movieId, seats) {
+    if (!blockedSeatsMap.has(movieId)) {
+        blockedSeatsMap.set(movieId, new Map());
+    }
+    
+    const blockedSeats = blockedSeatsMap.get(movieId);
+    const now = Date.now();
+    
+    seats.forEach(seat => {
+        blockedSeats.set(seat, now);
+    });
+    
+    // Schedule cleanup
+    setTimeout(() => cleanupBlockedSeats(movieId), blockTimeout);
+    
+    return true;
+}
+
+function confirmSeats(movieId, seats) {
+    // Initialize occupied seats set if not exists
+    if (!occupiedSeatsMap.has(movieId)) {
+        occupiedSeatsMap.set(movieId, new Set());
+    }
+    
+    const occupiedSeats = occupiedSeatsMap.get(movieId);
+    
+    // Move seats from blocked to occupied
+    seats.forEach(seat => {
+        occupiedSeats.add(seat);
+    });
+    
+    // Remove from blocked seats
+    if (blockedSeatsMap.has(movieId)) {
+        const blockedSeats = blockedSeatsMap.get(movieId);
+        seats.forEach(seat => {
+            blockedSeats.delete(seat);
+        });
+        
+        // Clean up if no blocked seats remain
+        if (blockedSeats.size === 0) {
+            blockedSeatsMap.delete(movieId);
+        }
+    }
+    
+    return true;
+}
+
+function releaseSeats(movieId, seats) {
+    if (blockedSeatsMap.has(movieId)) {
+        const blockedSeats = blockedSeatsMap.get(movieId);
+        seats.forEach(seat => {
+            blockedSeats.delete(seat);
+        });
+        
+        // Clean up if no blocked seats remain
+        if (blockedSeats.size === 0) {
+            blockedSeatsMap.delete(movieId);
         }
     }
     return true;
-};
-
-// Function to confirm seats after successful payment
-const confirmSeats = (movieId, selectedSeats) => {
-    const key = `${movieId}`;
-    if (!seats.has(key)) {
-        seats.set(key, new Map());
-    }
-
-    const movieSeats = seats.get(key);
-    selectedSeats.forEach(seat => {
-        movieSeats.set(seat, {
-            blocked: true,
-            confirmed: true,
-            timestamp: Date.now()
-        });
-    });
-
-    // Notify all clients about the booked seats
-    websocketService.handleBookSeats(movieId, selectedSeats);
-};
-
-// Function to get all blocked and occupied seats for a movie
-const getSeatsStatus = (movieId) => {
-    const key = `${movieId}`;
-    if (!seats.has(key)) {
-        return { occupiedSeats: [], blockedSeats: [] };
-    }
-
-    const movieSeats = seats.get(key);
-    const now = Date.now();
-    const occupiedSeats = [];
-    const blockedSeats = [];
-
-    movieSeats.forEach((info, seat) => {
-        if (info.confirmed) {
-            occupiedSeats.push(seat);
-        } else if (info.blocked && (now - info.timestamp) < 10 * 60 * 1000) {
-            blockedSeats.push(seat);
-        }
-    });
-
-    return { occupiedSeats, blockedSeats };
-};
+}
 
 // Function to get all blocked seats for a movie (for backward compatibility)
 const getBlockedSeats = (movieId) => {
@@ -108,9 +111,10 @@ const getBlockedSeats = (movieId) => {
 };
 
 module.exports = {
-    blockSeats,
+    getSeatsStatus,
     checkSeatsAvailability,
+    blockSeats,
     confirmSeats,
-    getBlockedSeats,
-    getSeatsStatus
+    releaseSeats,
+    getBlockedSeats
 }; 
