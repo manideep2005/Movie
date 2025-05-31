@@ -16,6 +16,18 @@ const PORT = process.env.PORT || 3001;
 const isProduction = process.env.NODE_ENV === 'production';
 const isVercel = process.env.VERCEL === '1';
 
+// Session configuration
+app.use(session({
+    secret: 'your-secret-key',
+    resave: true,
+    saveUninitialized: true,
+    cookie: {
+        secure: isProduction,
+        httpOnly: true,
+        maxAge: 30 * 60 * 1000 // 30 minutes
+    }
+}));
+
 // Body parser middleware
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -37,20 +49,6 @@ app.use((req, res, next) => {
 
     next();
 });
-
-// Session middleware with secure configuration
-app.use(session({
-    secret: process.env.SESSION_SECRET || 'your-secret-key',
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-        secure: isProduction,
-        httpOnly: true,
-        sameSite: 'lax',
-        maxAge: 24 * 60 * 60 * 1000, // 24 hours
-        domain: isVercel ? '.vercel.app' : undefined
-    }
-}));
 
 // Trust proxy for Vercel
 app.set('trust proxy', 1);
@@ -125,7 +123,8 @@ app.post('/check-seats', (req, res) => {
 // Payment page
 app.get('/payment', (req, res) => {
     const booking = req.session.pendingBooking;
-    console.log('Payment page - Session booking:', booking);
+    console.log('Payment page - Session:', req.session);
+    console.log('Payment page - Booking:', booking);
     
     if (!booking) {
         console.log('No pending booking found in session');
@@ -142,24 +141,51 @@ app.get('/payment', (req, res) => {
 app.post('/payment-preview-success', async (req, res) => {
     try {
         const booking = req.session.pendingBooking;
+        console.log('Payment success - Session:', req.session);
+        console.log('Payment success - Booking:', booking);
+
         if (!booking) {
-            return res.redirect('/');
+            console.log('No booking found in session for payment success');
+            return res.redirect('/?error=no_booking');
         }
+
         // Confirm seats
         seatService.confirmSeats(booking.movieId, booking.seats);
+
         // Log the booking
-        try { logBooking(booking); } catch (e) { console.error('Log error:', e); }
+        try { 
+            logBooking(booking); 
+        } catch (e) { 
+            console.error('Log error:', e); 
+        }
+
         // Send confirmation email
-        try { await emailService.sendBookingConfirmation(booking); } catch (e) { console.error('Email error:', e); }
-        // Store for success page
+        try { 
+            await emailService.sendBookingConfirmation(booking); 
+        } catch (e) { 
+            console.error('Email error:', e); 
+        }
+
+        // Store for success page and remove pending booking
         req.session.lastBooking = booking;
         delete req.session.pendingBooking;
-        res.redirect('/success');
+
+        // Save session explicitly before redirect
+        req.session.save((err) => {
+            if (err) {
+                console.error('Failed to save session after payment:', err);
+                return res.status(500).render('error', {
+                    title: 'Payment Error',
+                    error: 'Failed to process payment. Please try again.'
+                });
+            }
+            res.redirect('/success');
+        });
     } catch (error) {
         console.error('Payment preview error:', error);
         res.status(500).render('error', {
             title: 'Payment Error',
-            error: 'Failed to process payment preview.'
+            error: 'Failed to process payment. Please try again.'
         });
     }
 });
@@ -175,11 +201,16 @@ app.get('/booking-expired', (req, res) => {
 // Success page
 app.get('/success', (req, res) => {
     const booking = req.session.lastBooking;
+    console.log('Success page - Session:', req.session);
+    console.log('Success page - Booking:', booking);
+
     if (!booking) {
-        return res.redirect('/');
+        console.log('No booking found in session for success page');
+        return res.redirect('/?error=no_booking');
     }
-    // Clear the session data
-    delete req.session.lastBooking;
+
+    // Clear the session data after rendering
+    req.session.lastBooking = null;
     res.render('success', { booking });
 });
 
@@ -270,8 +301,9 @@ app.post('/start-booking', (req, res) => {
     try {
         const { name, email, movie, movieId, seats, amount } = req.body;
         
-        // Log the request body for debugging
+        // Log the request body and session for debugging
         console.log('Start booking request:', req.body);
+        console.log('Session before storing:', req.session);
 
         // Validate required fields
         if (!name || !email || !movie || !movieId || !seats || !amount) {
@@ -300,6 +332,9 @@ app.post('/start-booking', (req, res) => {
             timestamp: new Date()
         };
 
+        // Block seats
+        seatService.blockSeats(movieId, booking.seats);
+
         // Store in session
         req.session.pendingBooking = booking;
         
@@ -310,8 +345,9 @@ app.post('/start-booking', (req, res) => {
                 return res.status(500).json({ error: 'Failed to save booking. Please try again.' });
             }
             
-            // Log success
+            // Log success and session after storing
             console.log('Booking stored in session:', booking);
+            console.log('Session after storing:', req.session);
             
             // Send success response with redirect URL
             res.json({ 
