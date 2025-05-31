@@ -466,11 +466,21 @@
                     }));
                 }
 
+                console.log('Submitting booking:', {
+                    name,
+                    email,
+                    movie,
+                    movieId,
+                    seats,
+                    amount
+                });
+
                 // Start booking process
                 const response = await fetch('/start-booking', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
                     },
                     body: JSON.stringify({
                         name,
@@ -479,12 +489,15 @@
                         movieId,
                         seats,
                         amount
-                    })
+                    }),
+                    credentials: 'include'
                 });
 
                 const data = await response.json();
+                console.log('Booking response:', data);
                 
                 if (response.ok && data.success) {
+                    console.log('Booking successful, redirecting to payment...');
                     window.location.href = '/payment';
                 } else {
                     throw new Error(data.error || 'Booking failed. Please try again.');
@@ -492,6 +505,7 @@
             } catch (error) {
                 console.error('Booking error:', error);
                 alert(error.message || 'An error occurred. Please try again.');
+            } finally {
                 bookBtn.disabled = false;
                 bookBtn.textContent = 'Book Tickets';
             }

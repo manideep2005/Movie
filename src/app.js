@@ -16,48 +16,38 @@ const PORT = process.env.PORT || 3001;
 const isProduction = process.env.NODE_ENV === 'production';
 const isVercel = process.env.VERCEL === '1';
 
-// Initialize WebSocket server
-websocketService.initialize(server);
-
-// Sample movies data (you should replace this with your actual movies data source)
-const movies = [
-    {
-        id: 1,
-        name: "Inception",
-        price: 250,
-        description: "A thief who steals corporate secrets through the use of dream-sharing technology is given the inverse task of planting an idea into the mind of a C.E.O.",
-        image: "/images/inception.jpg"
-    },
-    {
-        id: 2,
-        name: "The Dark Knight",
-        price: 300,
-        description: "When the menace known as the Joker wreaks havoc and chaos on the people of Gotham, Batman must accept one of the greatest psychological and physical tests of his ability to fight injustice.",
-        image: "/images/dark-knight.jpg"
-    },
-    {
-        id: 3,
-        name: "Interstellar",
-        price: 280,
-        description: "A team of explorers travel through a wormhole in space in an attempt to ensure humanity's survival.",
-        image: "/images/interstellar.jpg"
-    }
-];
-
-// Middleware
+// Body parser middleware
 app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: false }));
-app.use(express.static(path.join(__dirname, '../public')));
+app.use(bodyParser.urlencoded({ extended: true }));
+
+// Session middleware with secure configuration
 app.use(session({
     secret: process.env.SESSION_SECRET || 'your-secret-key',
     resave: false,
-    saveUninitialized: true,
-    cookie: { secure: isProduction }
+    saveUninitialized: false,
+    cookie: {
+        secure: isProduction,
+        httpOnly: true,
+        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    }
 }));
+
+// Initialize WebSocket server
+websocketService.initialize(server);
 
 // Set view engine
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, '../views'));
+
+// Serve static files
+app.use(express.static(path.join(__dirname, '../public')));
+
+// Movie data (in-memory for demo)
+const movies = [
+    { id: 1, name: 'Inception', price: 250 },
+    { id: 2, name: 'The Dark Knight', price: 300 },
+    { id: 3, name: 'Interstellar', price: 280 }
+];
 
 // Routes
 app.get('/', (req, res) => {
@@ -251,24 +241,52 @@ app.get('/download-ticket/:bookingId', async (req, res) => {
 app.post('/start-booking', (req, res) => {
     try {
         const { name, email, movie, movieId, seats, amount } = req.body;
+        
+        // Log the request body for debugging
+        console.log('Start booking request:', req.body);
+
+        // Validate required fields
         if (!name || !email || !movie || !movieId || !seats || !amount) {
+            console.log('Missing required fields:', { name, email, movie, movieId, seats, amount });
             return res.status(400).json({ error: 'All fields are required' });
         }
+
+        // Validate movie exists
+        const selectedMovie = movies.find(m => m.id === parseInt(movieId));
+        if (!selectedMovie) {
+            return res.status(400).json({ error: 'Invalid movie selected' });
+        }
+
+        // Generate unique booking ID
         const bookingId = Date.now().toString(36) + Math.random().toString(36).substr(2);
-        req.session.pendingBooking = {
+        
+        // Create booking object
+        const booking = {
             _id: bookingId,
             name,
             email,
             movie,
-            movieId,
+            movieId: parseInt(movieId),
             seats: Array.isArray(seats) ? seats : [seats],
-            amount,
+            amount: parseInt(amount),
             timestamp: new Date()
         };
-        res.json({ success: true });
+
+        // Store in session
+        req.session.pendingBooking = booking;
+        
+        // Log success
+        console.log('Booking stored in session:', booking);
+        
+        // Send success response
+        res.json({ 
+            success: true,
+            message: 'Booking started successfully',
+            bookingId
+        });
     } catch (error) {
         console.error('Start booking error:', error);
-        res.status(500).json({ error: 'Failed to start booking' });
+        res.status(500).json({ error: 'Failed to start booking. Please try again.' });
     }
 });
 
