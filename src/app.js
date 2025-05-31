@@ -28,7 +28,9 @@ app.use(session({
     cookie: {
         secure: isProduction,
         httpOnly: true,
-        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+        sameSite: 'lax',
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        domain: isVercel ? '.vercel.app' : undefined
     }
 }));
 
@@ -102,11 +104,16 @@ app.post('/check-seats', (req, res) => {
 // Payment page
 app.get('/payment', (req, res) => {
     const booking = req.session.pendingBooking;
+    console.log('Payment page - Session booking:', booking);
+    
     if (!booking) {
-        return res.redirect('/');
+        console.log('No pending booking found in session');
+        return res.redirect('/?error=no_booking');
     }
+    
     res.render('payment', {
-        booking
+        booking,
+        baseUrl: isVercel ? process.env.BASE_URL : `http://localhost:${PORT}`
     });
 });
 
@@ -275,14 +282,23 @@ app.post('/start-booking', (req, res) => {
         // Store in session
         req.session.pendingBooking = booking;
         
-        // Log success
-        console.log('Booking stored in session:', booking);
-        
-        // Send success response
-        res.json({ 
-            success: true,
-            message: 'Booking started successfully',
-            bookingId
+        // Save session explicitly
+        req.session.save((err) => {
+            if (err) {
+                console.error('Failed to save session:', err);
+                return res.status(500).json({ error: 'Failed to save booking. Please try again.' });
+            }
+            
+            // Log success
+            console.log('Booking stored in session:', booking);
+            
+            // Send success response with redirect URL
+            res.json({ 
+                success: true,
+                message: 'Booking started successfully',
+                bookingId,
+                redirectUrl: '/payment'
+            });
         });
     } catch (error) {
         console.error('Start booking error:', error);

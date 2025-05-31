@@ -225,10 +225,24 @@
         }
 
         function connectWebSocket(movieId) {
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const host = window.location.host;
-            const wsUrl = `${protocol}//${host}/ws${movieId ? `?movieId=${movieId}` : ''}`;
-            
+            // Get the base URL from the environment
+            const isProduction = window.location.hostname.includes('vercel.app');
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            let wsUrl;
+
+            if (isProduction) {
+                // For Vercel deployment
+                wsUrl = `${wsProtocol}//${window.location.host}/ws`;
+            } else {
+                // For local development
+                wsUrl = `ws://localhost:3001/ws`;
+            }
+
+            // Add movieId as query parameter if provided
+            if (movieId) {
+                wsUrl += `?movieId=${movieId}`;
+            }
+
             if (socket && socket.readyState !== WebSocket.CLOSED) {
                 console.log('Socket is already connected or connecting');
                 return;
@@ -238,19 +252,25 @@
             console.log('Attempting to connect to WebSocket:', wsUrl);
             
             try {
+                // Create new WebSocket connection with error handling
                 socket = new WebSocket(wsUrl);
                 
                 socket.onopen = () => {
-                    console.log('WebSocket connected successfully');
+                    console.log('WebSocket connected successfully to:', wsUrl);
                     updateConnectionStatus('connected', '🟢 Connected');
                     reconnectAttempts = 0;
 
                     // Join movie room if movieId is provided
                     if (movieId) {
-                        socket.send(JSON.stringify({
-                            type: 'join_movie',
-                            movieId
-                        }));
+                        try {
+                            socket.send(JSON.stringify({
+                                type: 'join_movie',
+                                movieId
+                            }));
+                            console.log('Joined movie room:', movieId);
+                        } catch (error) {
+                            console.error('Failed to join movie room:', error);
+                        }
                     }
                 };
                 
@@ -263,7 +283,7 @@
                         const delay = Math.min(1000 * Math.pow(2, reconnectAttempts - 1), 30000); // Cap at 30 seconds
                         const message = `🔄 Reconnecting (${reconnectAttempts}/${maxReconnectAttempts})...`;
                         updateConnectionStatus('connecting', message);
-                        console.log(message);
+                        console.log(message, 'Next attempt in', delay, 'ms');
                         setTimeout(() => connectWebSocket(movieId), delay);
                     } else {
                         console.log('Max reconnection attempts reached');
@@ -279,6 +299,14 @@
                 socket.onerror = (error) => {
                     console.error('WebSocket error:', error);
                     updateConnectionStatus('error', '⚠️ Connection Error');
+                    // Log additional connection details for debugging
+                    console.log('Connection Details:', {
+                        url: wsUrl,
+                        readyState: socket.readyState,
+                        protocol: socket.protocol,
+                        host: window.location.host,
+                        isProduction: isProduction
+                    });
                 };
                 
                 socket.onmessage = (event) => {
@@ -497,8 +525,11 @@
                 console.log('Booking response:', data);
                 
                 if (response.ok && data.success) {
-                    console.log('Booking successful, redirecting to payment...');
-                    window.location.href = '/payment';
+                    console.log('Booking successful, redirecting to:', data.redirectUrl);
+                    // Add a small delay to ensure session is saved
+                    setTimeout(() => {
+                        window.location.href = data.redirectUrl;
+                    }, 500);
                 } else {
                     throw new Error(data.error || 'Booking failed. Please try again.');
                 }

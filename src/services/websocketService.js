@@ -19,13 +19,19 @@ class WebSocketService {
                 path: '/ws',
                 clientTracking: true,
                 perMessageDeflate: false,
-                handleProtocols: () => 'websocket',
+                handleProtocols: (protocols) => {
+                    if (protocols.includes('websocket')) {
+                        return 'websocket';
+                    }
+                    return '';
+                },
                 verifyClient: (info, cb) => {
                     // Log verification attempt
                     console.log('🔐 Verifying WebSocket connection:', {
                         origin: info.origin,
                         secure: info.secure,
-                        url: info.req.url
+                        url: info.req.url,
+                        headers: info.req.headers
                     });
                     
                     // Allow all connections in development
@@ -36,17 +42,27 @@ class WebSocketService {
 
                     // In production, verify the origin
                     const origin = info.origin || info.req.headers.origin;
-                    const allowedOrigins = [
-                        'https://movie-k9tyu0ohs-gonugunta-manideeps-projects.vercel.app',
-                        'https://movie-rbix8bkwq-gonugunta-manideeps-projects.vercel.app'
-                    ];
-
-                    if (allowedOrigins.includes(origin)) {
+                    const host = info.req.headers.host;
+                    
+                    // Allow connections from the same host
+                    if (host && origin && (origin.includes(host) || host.includes(origin))) {
+                        console.log('✅ Verified WebSocket connection from same host');
                         cb(true);
-                    } else {
-                        console.log(`❌ Rejected WebSocket connection from unauthorized origin: ${origin}`);
-                        cb(false, 403, 'Unauthorized origin');
+                        return;
                     }
+
+                    // Also allow local development
+                    if (origin && (
+                        origin.includes('localhost') || 
+                        origin.includes('127.0.0.1')
+                    )) {
+                        console.log('✅ Verified local development WebSocket connection');
+                        cb(true);
+                        return;
+                    }
+
+                    console.log(`❌ Rejected WebSocket connection from unauthorized origin: ${origin}`);
+                    cb(false, 403, 'Unauthorized origin');
                 }
             };
 
@@ -77,6 +93,12 @@ class WebSocketService {
                     }
                 }
             });
+
+            // Log when server is ready
+            this.wss.on('listening', () => {
+                console.log('🎉 WebSocket server is ready and listening');
+            });
+
         } catch (error) {
             console.error('Failed to initialize WebSocket server:', error);
         }
