@@ -10,20 +10,13 @@
             font-family: 'Segoe UI', sans-serif;
             background: linear-gradient(120deg, #1e3c72, #2a5298);
             color: white;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
+            min-height: 100vh;
             margin: 0;
+            padding-bottom: 2rem;
         }
 
         .container {
-            text-align: center;
             padding: 2rem;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
         }
 
         h1 {
@@ -31,42 +24,69 @@
             margin-bottom: 1rem;
         }
 
-        p {
-            font-size: 1.1rem;
-            margin-bottom: 2rem;
-            opacity: 0.9;
-        }
-
-        .cta-button {
-            display: inline-block;
-            padding: 1rem 2rem;
-            background-color: #00b894;
-            color: white;
-            text-decoration: none;
-            border-radius: 5px;
-            font-weight: bold;
-            transition: background-color 0.3s ease;
-        }
-
-        .cta-button:hover {
-            background-color: #019875;
-        }
-
         .movie-card {
-            transition: transform 0.3s;
+            transition: transform 0.3s, box-shadow 0.3s;
             height: 100%;
+            background: rgba(0, 0, 0, 0.4) !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
         }
+
         .movie-card:hover {
             transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
         }
+
         .movie-image {
-            height: 300px;
+            height: 400px;
             object-fit: cover;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .card-body {
+            padding: 1.5rem;
+        }
+
+        .movie-description {
+            font-size: 0.9rem;
+            opacity: 0.8;
+            margin-bottom: 1rem;
+            height: 80px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+        }
+
+        .price-tag {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #00b894;
+            margin-bottom: 1rem;
+        }
+
+        .book-btn {
+            background-color: #00b894;
+            border: none;
+            padding: 0.8rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            transition: all 0.3s ease;
+        }
+
+        .book-btn:hover {
+            background-color: #019875;
+            transform: translateY(-2px);
+        }
+
+        .navbar {
+            background: rgba(0, 0, 0, 0.2) !important;
+            backdrop-filter: blur(10px);
         }
     </style>
 </head>
-<body class="bg-dark text-light">
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark border-bottom">
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
         <div class="container">
             <a class="navbar-brand" href="/">🎬 Cinema Booking</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -75,25 +95,26 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="/admin">Admin Panel</a>
+                        <a class="nav-link" href="/admin">User Panel</a>
                     </li>
                 </ul>
             </div>
         </div>
     </nav>
 
-    <div class="container mt-5">
+    <div class="container" style="margin-top: 80px;">
         <h1 class="text-center mb-5">Now Showing</h1>
         
         <div class="row g-4">
             <% movies.forEach(movie => { %>
                 <div class="col-md-3">
-                    <div class="card movie-card bg-dark text-light border-light">
-                        <img src="/images/<%= movie.id %>.jpg" class="card-img-top movie-image" alt="<%= movie.name %>" onerror="this.src='/images/default-movie.jpg'">
+                    <div class="movie-card card text-light">
+                        <img src="<%= movie.image %>" class="movie-image" alt="<%= movie.name %>" onerror="this.src='/images/default-movie.jpg'">
                         <div class="card-body">
-                            <h5 class="card-title"><%= movie.name %></h5>
-                            <p class="card-text">₹<%= movie.price %></p>
-                            <a href="/book?movie=<%= movie.id %>" class="btn btn-primary w-100">Book Now</a>
+                            <h5 class="card-title mb-3"><%= movie.name %></h5>
+                            <p class="movie-description"><%= movie.description %></p>
+                            <div class="price-tag">₹<%= movie.price %></div>
+                            <a href="/book?movie=<%= movie.id %>" class="btn btn-primary book-btn w-100">Book Now</a>
                         </div>
                     </div>
                 </div>

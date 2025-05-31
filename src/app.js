@@ -14,10 +14,38 @@ const isVercel = process.env.VERCEL === '1';
 
 // Sample movie data
 const movies = [
-  { id: 1, name: "Inception", price: 200, seats: Array(84).fill(false) }, // 7 rows * 12 seats
-  { id: 2, name: "The Dark Knight", price: 200, seats: Array(84).fill(false) },
-  { id: 3, name: "Interstellar", price: 200, seats: Array(84).fill(false) },
-  { id: 4, name: "Avengers: Endgame", price: 200, seats: Array(84).fill(false) }
+  { 
+    id: 1, 
+    name: "Inception", 
+    price: 200, 
+    seats: Array(84).fill(false),
+    image: "https://m.media-amazon.com/images/M/MV5BMjAxMzY3NjcxNF5BMl5BanBnXkFtZTcwNTI5OTM0Mw@@._V1_.jpg",
+    description: "A thief who steals corporate secrets through dream-sharing technology is given the inverse task of planting an idea into the mind of a C.E.O."
+  },
+  { 
+    id: 2, 
+    name: "The Dark Knight", 
+    price: 200, 
+    seats: Array(84).fill(false),
+    image: "https://m.media-amazon.com/images/M/MV5BMTMxNTMwODM0NF5BMl5BanBnXkFtZTcwODAyMTk2Mw@@._V1_.jpg",
+    description: "When the menace known as the Joker wreaks havoc and chaos on the people of Gotham, Batman must accept one of the greatest psychological and physical tests of his ability to fight injustice."
+  },
+  { 
+    id: 3, 
+    name: "Interstellar", 
+    price: 200, 
+    seats: Array(84).fill(false),
+    image: "https://m.media-amazon.com/images/M/MV5BZjdkOTU3MDktN2IxOS00OGEyLWFmMjktY2FiMmZkNWIyODZiXkEyXkFqcGdeQXVyMTMxODk2OTU@._V1_.jpg",
+    description: "A team of explorers travel through a wormhole in space in an attempt to ensure humanity's survival."
+  },
+  { 
+    id: 4, 
+    name: "Avengers: Endgame", 
+    price: 200, 
+    seats: Array(84).fill(false),
+    image: "https://m.media-amazon.com/images/M/MV5BMTc5MDE2ODcwNV5BMl5BanBnXkFtZTgwMzI2NzQ2NzM@._V1_.jpg",
+    description: "After the devastating events of Infinity War, the universe is in ruins. With the help of remaining allies, the Avengers assemble once more in order to reverse Thanos' actions and restore balance to the universe."
+  }
 ];
 
 // Middleware
@@ -219,22 +247,42 @@ app.get('/test-email', async (req, res) => {
 app.get('/download-ticket/:bookingId', async (req, res) => {
   try {
     const bookingId = req.params.bookingId;
-    const bookings = getBookingLogs();
-    const booking = bookings.find(b => b._id === bookingId);
+    console.log('📥 Attempting to download ticket for booking:', bookingId);
 
+    const bookings = getBookingLogs();
+    console.log('📋 Found bookings:', bookings.length);
+
+    const booking = bookings.find(b => b._id === bookingId);
+    
     if (!booking) {
-      return res.status(404).send('Booking not found');
+      console.error('❌ Booking not found:', bookingId);
+      return res.status(404).render('error', {
+        title: 'Booking Not Found',
+        error: 'Could not find the specified booking. Please check your booking ID.'
+      });
     }
 
-    // Set response headers for PDF download
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="ticket-${bookingId}.pdf"`);
+    console.log('✅ Found booking:', booking);
 
-    // Generate and stream the PDF
-    await ticketService.generateTicket(booking, res);
+    try {
+      // Set response headers for PDF download
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="ticket-${bookingId}.pdf"`);
+
+      // Generate and stream the PDF
+      console.log('🎫 Generating PDF ticket...');
+      await ticketService.generateTicket(booking, res);
+      console.log('✅ PDF ticket generated successfully');
+    } catch (pdfError) {
+      console.error('❌ PDF generation error:', pdfError);
+      throw new Error('Failed to generate PDF ticket');
+    }
   } catch (error) {
-    console.error('❌ Error generating ticket:', error);
-    res.status(500).send('Error generating ticket');
+    console.error('❌ Error in download-ticket route:', error);
+    res.status(500).render('error', {
+      title: 'Download Failed',
+      error: 'Failed to generate your ticket. Please try again or contact support.'
+    });
   }
 });
 

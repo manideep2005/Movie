@@ -14,6 +14,6 @@
     ],
     "env": {
         "NODE_ENV": "production",
-        "BASE_URL": "https://movie-booking-sage.vercel.app/"
+        "BASE_URL": "https://movie-gilt-six.vercel.app/"
     }
 } 
