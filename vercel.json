@@ -13,6 +13,6 @@
         }
     ],
     "env": {
-        "BASE_URL": "@base_url"
+        "BASE_URL": "https://movie-booking-sage.vercel.app"
     }
 } 

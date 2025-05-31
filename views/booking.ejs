@@ -126,12 +126,12 @@
         <div class="seat-container">
             <div class="screen">SCREEN</div>
             
-            <% const rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G']; %>
+            <% const rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q']; %>
             <% rows.forEach(row => { %>
                 <div class="d-flex align-items-center">
                     <div class="row-label"><%= row %></div>
                     <div class="row">
-                        <% for(let i = 1; i <= 12; i++) { %>
+                        <% for(let i = 1; i <= 26; i++) { %>
                             <div class="seat" data-seat="<%= row + i %>"></div>
                         <% } %>
                     </div>
