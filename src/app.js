@@ -19,36 +19,29 @@ const isVercel = process.env.VERCEL === '1';
 // Initialize WebSocket server
 websocketService.initialize(server);
 
-// Sample movie data
+// Sample movies data (you should replace this with your actual movies data source)
 const movies = [
-  { 
-    id: 1, 
-    name: "Inception", 
-    price: 200, 
-    image: "https://m.media-amazon.com/images/M/MV5BMjAxMzY3NjcxNF5BMl5BanBnXkFtZTcwNTI5OTM0Mw@@._V1_.jpg",
-    description: "A thief who steals corporate secrets through dream-sharing technology is given the inverse task of planting an idea into the mind of a C.E.O."
-  },
-  { 
-    id: 2, 
-    name: "The Dark Knight", 
-    price: 200, 
-    image: "https://m.media-amazon.com/images/M/MV5BMTMxNTMwODM0NF5BMl5BanBnXkFtZTcwODAyMTk2Mw@@._V1_.jpg",
-    description: "When the menace known as the Joker wreaks havoc and chaos on the people of Gotham, Batman must accept one of the greatest psychological and physical tests of his ability to fight injustice."
-  },
-  { 
-    id: 3, 
-    name: "Interstellar", 
-    price: 200, 
-    image: "https://m.media-amazon.com/images/M/MV5BZjdkOTU3MDktN2IxOS00OGEyLWFmMjktY2FiMmZkNWIyODZiXkEyXkFqcGdeQXVyMTMxODk2OTU@._V1_.jpg",
-    description: "A team of explorers travel through a wormhole in space in an attempt to ensure humanity's survival."
-  },
-  { 
-    id: 4, 
-    name: "Avengers: Endgame", 
-    price: 200, 
-    image: "https://m.media-amazon.com/images/M/MV5BMTc5MDE2ODcwNV5BMl5BanBnXkFtZTgwMzI2NzQ2NzM@._V1_.jpg",
-    description: "After the devastating events of Infinity War, the universe is in ruins. With the help of remaining allies, the Avengers assemble once more in order to reverse Thanos' actions and restore balance to the universe."
-  }
+    {
+        id: 1,
+        name: "Inception",
+        price: 250,
+        description: "A thief who steals corporate secrets through the use of dream-sharing technology is given the inverse task of planting an idea into the mind of a C.E.O.",
+        image: "/images/inception.jpg"
+    },
+    {
+        id: 2,
+        name: "The Dark Knight",
+        price: 300,
+        description: "When the menace known as the Joker wreaks havoc and chaos on the people of Gotham, Batman must accept one of the greatest psychological and physical tests of his ability to fight injustice.",
+        image: "/images/dark-knight.jpg"
+    },
+    {
+        id: 3,
+        name: "Interstellar",
+        price: 280,
+        description: "A team of explorers travel through a wormhole in space in an attempt to ensure humanity's survival.",
+        image: "/images/interstellar.jpg"
+    }
 ];
 
 // Middleware
@@ -75,7 +68,11 @@ app.get('/book', (req, res) => {
     const movieId = parseInt(req.query.movie);
     const selectedMovie = movies.find(m => m.id === movieId);
     
-    if (movieId && !selectedMovie) {
+    if (!movieId) {
+        return res.redirect('/');
+    }
+    
+    if (!selectedMovie) {
         return res.status(404).render('error', {
             title: 'Movie Not Found',
             error: 'The selected movie was not found.'
@@ -83,10 +80,11 @@ app.get('/book', (req, res) => {
     }
 
     // Get seat status for the movie
-    const { occupiedSeats, blockedSeats } = movieId ? seatService.getSeatsStatus(movieId) : { occupiedSeats: [], blockedSeats: [] };
+    const { occupiedSeats, blockedSeats } = seatService.getSeatsStatus(movieId);
 
     res.render('booking', { 
         movies,
+        movie: selectedMovie,
         selectedMovie,
         occupiedSeats,
         blockedSeats

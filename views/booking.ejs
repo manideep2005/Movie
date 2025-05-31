@@ -27,7 +27,7 @@
             margin: 5px;
         }
         .seat {
-            background-color: #444451; /* Available seats - Black/Dark color */
+            background-color: #444451;
             height: 30px;
             width: 35px;
             margin: 3px;
@@ -35,27 +35,23 @@
             border-top-right-radius: 10px;
             cursor: pointer;
             transition: all 0.3s ease;
-            border: 2px solid transparent;
         }
         .seat.selected {
-            background-color: #007bff; /* Selected seats - Blue color */
-            border-color: #0056b3;
+            background-color: #6feaf6;
             transform: scale(1.1);
         }
         .seat.occupied {
-            background-color: #fff; /* Booked/Occupied seats - White color */
+            background-color: #fff;
             cursor: not-allowed;
-            border-color: #ddd;
         }
         .seat.temporarily-blocked {
-            background-color: #ffc107; /* Temporarily blocked seats - Yellow */
+            background-color: #ffc107;
             cursor: not-allowed;
             animation: pulse 2s infinite;
         }
         .seat:not(.occupied):not(.temporarily-blocked):hover {
             cursor: pointer;
             transform: scale(1.2);
-            background-color: #5a5a67;
         }
         .showcase .seat:not(.occupied):hover {
             cursor: default;
@@ -63,12 +59,12 @@
         }
         .showcase {
             background: rgba(0,0,0,0.1);
-            padding: 10px 20px;
-            border-radius: 8px;
+            padding: 5px 10px;
+            border-radius: 5px;
             color: #777;
             list-style-type: none;
             display: flex;
-            justify-content: space-around;
+            justify-content: space-between;
             margin: 20px 0;
         }
         .showcase li {
@@ -78,44 +74,49 @@
             margin: 0 10px;
         }
         .showcase li small {
-            margin-left: 8px;
-            font-weight: 500;
+            margin-left: 2px;
         }
         .row-label {
-            margin-right: 15px;
+            margin-right: 10px;
             width: 30px;
             text-align: right;
             line-height: 35px;
             font-weight: bold;
             color: #ccc;
         }
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
-        }
-        .connection-status {
+        #connection-status {
             position: fixed;
             top: 20px;
             right: 20px;
             padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 12px;
+            border-radius: 4px;
+            color: white;
             font-weight: bold;
             z-index: 1000;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
-        .connected {
-            background-color: #28a745;
-            color: white;
+        #connection-status::before {
+            content: '';
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: currentColor;
+            animation: pulse 2s infinite;
         }
-        .disconnected {
-            background-color: #dc3545;
-            color: white;
+        @keyframes pulse {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+            100% { opacity: 1; transform: scale(1); }
         }
     </style>
 </head>
 <body class="bg-dark text-light">
-    <div id="connectionStatus" class="connection-status">Connecting...</div>
+    <div id="connection-status">Connecting...</div>
     <div class="container mt-5">
         <h1 class="text-center mb-4">🎬 Movie Seat Booking</h1>
 
@@ -125,11 +126,15 @@
                 <div class="form-group">
                     <label for="movieSelect" class="form-label">Select Movie</label>
                     <select class="form-control" id="movieSelect" required>
-                        <option value="" data-price="0" data-id="">Choose a movie...</option>
+                        <option value="">Choose a movie...</option>
                         <% movies.forEach(movie => { %>
-                            <option value="<%- movie.name %>" data-price="<%- movie.price %>" data-id="<%- movie.id %>"
-                                <%- selectedMovie && selectedMovie.id === movie.id ? 'selected' : '' %>>
-                                <%- movie.name %> - ₹<%- movie.price %>
+                            <option 
+                                value="<%= movie.name %>" 
+                                data-price="<%= movie.price %>" 
+                                data-movie-id="<%= movie.id %>"
+                                <%= selectedMovie && selectedMovie.id === movie.id ? 'selected' : '' %>
+                            >
+                                <%= movie.name %> - ₹<%= movie.price %>
                             </option>
                         <% }); %>
                     </select>
@@ -151,7 +156,6 @@
             </div>
         </div>
         
-        <!-- Seat Legend -->
         <ul class="showcase">
             <li>
                 <div class="seat"></div>
@@ -171,9 +175,9 @@
             </li>
         </ul>
 
-        <!-- Seat Selection Area -->
         <div class="seat-container">
             <div class="screen">🎬 SCREEN 🎬</div>
+            
             <% const rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q']; %>
             <% rows.forEach(row => { %>
                 <div class="d-flex align-items-center">
@@ -187,7 +191,6 @@
             <% }); %>
         </div>
 
-        <!-- Booking Summary -->
         <div class="text-center mt-4">
             <p>Selected Seats: <span id="selected-seats">None selected</span></p>
             <p>Total Amount: ₹<span id="total-price">0</span></p>
@@ -196,77 +199,114 @@
     </div>
 
     <script>
-        // Initialize seat status from server data
-        const occupiedSeats = new Set(JSON.parse('<%- JSON.stringify(occupiedSeats || []) %>'));
-        const blockedSeats = new Set(JSON.parse('<%- JSON.stringify(blockedSeats || []) %>'));
-
-        // Initialize WebSocket connection
-        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsHost = window.location.host;
-        const wsUrl = `${wsProtocol}//${wsHost}/ws?movieId=<%= selectedMovie ? selectedMovie.id : '' %>`;
-        console.log('Connecting to WebSocket:', wsUrl);
-
-        // Add reconnection logic
+        let socket;
         let reconnectAttempts = 0;
         const maxReconnectAttempts = 5;
-        const reconnectInterval = 3000; // 3 seconds
+        const reconnectDelay = 3000; // 3 seconds
 
-        function connectWebSocket() {
-            const ws = new WebSocket(wsUrl);
+        function updateConnectionStatus(status, message) {
+            const statusElement = document.getElementById('connection-status');
+            statusElement.textContent = message;
             
-            ws.onopen = () => {
-                console.log('🔌 WebSocket connected');
-                document.getElementById('connectionStatus').textContent = '🟢 Connected';
-                document.getElementById('connectionStatus').className = 'connection-status connected';
-                reconnectAttempts = 0; // Reset attempts on successful connection
-            };
-
-            ws.onclose = (event) => {
-                console.log('WebSocket disconnected:', event.code, event.reason);
-                document.getElementById('connectionStatus').textContent = '🔴 Disconnected';
-                document.getElementById('connectionStatus').className = 'connection-status disconnected';
-
-                // Try to reconnect if not at max attempts
-                if (reconnectAttempts < maxReconnectAttempts) {
-                    reconnectAttempts++;
-                    console.log(`Reconnecting... Attempt ${reconnectAttempts}/${maxReconnectAttempts}`);
-                    setTimeout(connectWebSocket, reconnectInterval);
-                } else {
-                    console.log('Max reconnection attempts reached');
-                    document.getElementById('connectionStatus').textContent = '🔴 Connection Failed';
-                }
-            };
-
-            ws.onerror = (error) => {
-                console.error('WebSocket error:', error);
-            };
-
-            ws.onmessage = (event) => {
-                const data = JSON.parse(event.data);
-                handleWebSocketMessage(data);
-            };
-
-            return ws;
-        }
-
-        const socket = connectWebSocket();
-
-        function handleWebSocketMessage(data) {
-            switch (data.type) {
-                case 'seat_update':
-                    updateSeatsDisplay(data.occupiedSeats, data.blockedSeats);
+            switch (status) {
+                case 'connecting':
+                    statusElement.style.backgroundColor = '#ff9800';
                     break;
-                case 'seat_blocked':
-                    markSeatsAsBlocked(data.seats);
+                case 'connected':
+                    statusElement.style.backgroundColor = '#4CAF50';
                     break;
-                case 'seat_booked':
-                    markSeatsAsOccupied(data.seats);
+                case 'disconnected':
+                    statusElement.style.backgroundColor = '#f44336';
+                    break;
+                case 'error':
+                    statusElement.style.backgroundColor = '#ff9800';
                     break;
             }
         }
 
-        function updateSeatsDisplay(newOccupiedSeats, newBlockedSeats) {
-            // Reset all seats to available first
+        function connectWebSocket(movieId) {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws${movieId ? `?movieId=${movieId}` : ''}`;
+            
+            if (socket && socket.readyState !== WebSocket.CLOSED) {
+                console.log('Socket is already connected or connecting');
+                return;
+            }
+
+            updateConnectionStatus('connecting', '🔄 Connecting...');
+            console.log('Attempting to connect to WebSocket:', wsUrl);
+            
+            socket = new WebSocket(wsUrl);
+            
+            socket.onopen = () => {
+                console.log('WebSocket connected successfully');
+                updateConnectionStatus('connected', '🟢 Connected');
+                reconnectAttempts = 0;
+
+                // Join movie room if movieId is provided
+                if (movieId) {
+                    socket.send(JSON.stringify({
+                        type: 'join_movie',
+                        movieId
+                    }));
+                }
+            };
+            
+            socket.onclose = (event) => {
+                console.log('WebSocket disconnected:', event.code, event.reason);
+                updateConnectionStatus('disconnected', '🔴 Disconnected');
+                
+                if (reconnectAttempts < maxReconnectAttempts) {
+                    reconnectAttempts++;
+                    const message = `🔄 Reconnecting (${reconnectAttempts}/${maxReconnectAttempts})...`;
+                    updateConnectionStatus('connecting', message);
+                    console.log(message);
+                    setTimeout(() => connectWebSocket(movieId), reconnectDelay);
+                } else {
+                    console.log('Max reconnection attempts reached');
+                    updateConnectionStatus('error', '❌ Connection Failed');
+                }
+            };
+            
+            socket.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                updateConnectionStatus('error', '⚠️ Connection Error');
+            };
+            
+            socket.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    console.log('Received message:', data);
+                    
+                    switch (data.type) {
+                        case 'connection':
+                            handleConnectionStatus(data);
+                            break;
+                        case 'seat_blocked':
+                            handleSeatBlocked(data.seats);
+                            break;
+                        case 'seat_booked':
+                            handleSeatBooked(data.seats);
+                            break;
+                        case 'seat_update':
+                            handleSeatUpdate(data.occupiedSeats, data.blockedSeats);
+                            break;
+                        default:
+                            console.log('Unknown message type:', data.type);
+                    }
+                } catch (error) {
+                    console.error('Failed to parse message:', error);
+                }
+            };
+        }
+
+        function handleConnectionStatus(data) {
+            if (data.status === 'connected') {
+                console.log('Successfully connected to movie room:', data.movieId);
+            }
+        }
+
+        function handleSeatUpdate(newOccupiedSeats, newBlockedSeats) {
             document.querySelectorAll('.seat').forEach(seat => {
                 const seatId = seat.dataset.seat;
                 seat.className = 'seat';
@@ -280,7 +320,7 @@
             updateSelectedCount();
         }
 
-        function markSeatsAsBlocked(seats) {
+        function handleSeatBlocked(seats) {
             seats.forEach(seatId => {
                 const seat = document.querySelector(`[data-seat="${seatId}"]`);
                 if (seat && !seat.classList.contains('occupied')) {
@@ -291,7 +331,7 @@
             updateSelectedCount();
         }
 
-        function markSeatsAsOccupied(seats) {
+        function handleSeatBooked(seats) {
             seats.forEach(seatId => {
                 const seat = document.querySelector(`[data-seat="${seatId}"]`);
                 if (seat) {
@@ -303,16 +343,8 @@
         }
 
         // Initialize seats on page load
-        document.addEventListener('DOMContentLoaded', () => {
-            document.querySelectorAll('.seat').forEach(seat => {
-                const seatId = seat.dataset.seat;
-                if (occupiedSeats.has(seatId)) {
-                    seat.classList.add('occupied');
-                } else if (blockedSeats.has(seatId)) {
-                    seat.classList.add('temporarily-blocked');
-                }
-            });
-        });
+        const occupiedSeats = new Set(JSON.parse('<%- JSON.stringify(occupiedSeats || []) %>'));
+        const blockedSeats = new Set(JSON.parse('<%- JSON.stringify(blockedSeats || []) %>'));
 
         // UI Elements
         const container = document.querySelector('.seat-container');
@@ -326,11 +358,6 @@
             return parseInt(selectedOption.dataset.price) || 0;
         }
 
-        function getSelectedMovieId() {
-            const selectedOption = movieSelect.options[movieSelect.selectedIndex];
-            return selectedOption.dataset.id;
-        }
-
         function updateSelectedCount() {
             const selectedSeats = document.querySelectorAll('.row .seat.selected');
             const selectedSeatsArray = [...selectedSeats].map(seat => seat.dataset.seat);
@@ -339,8 +366,27 @@
             selectedSeatsElement.textContent = selectedSeatsArray.length > 0 ? selectedSeatsArray.join(', ') : 'None selected';
             totalPriceElement.textContent = selectedSeatsArray.length * pricePerSeat;
             
-            bookBtn.disabled = selectedSeatsArray.length === 0 || !getSelectedMovieId();
+            bookBtn.disabled = selectedSeatsArray.length === 0;
         }
+
+        // Initialize seats and WebSocket on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('.seat').forEach(seat => {
+                const seatId = seat.dataset.seat;
+                if (occupiedSeats.has(seatId)) {
+                    seat.classList.add('occupied');
+                } else if (blockedSeats.has(seatId)) {
+                    seat.classList.add('temporarily-blocked');
+                }
+            });
+            
+            // Get initial movie ID from select
+            const selectedOption = movieSelect.options[movieSelect.selectedIndex];
+            const initialMovieId = selectedOption ? parseInt(selectedOption.dataset.movieId) : null;
+            
+            // Initialize WebSocket connection with initial movie ID
+            connectWebSocket(initialMovieId);
+        });
 
         // Event Listeners
         container.addEventListener('click', (e) => {
@@ -354,15 +400,16 @@
         });
 
         movieSelect.addEventListener('change', () => {
-            const movieId = getSelectedMovieId();
-            if (movieId) {
-                // Join new movie room
-                socket.send(JSON.stringify({
-                    type: 'join_movie',
-                    movieId: movieId
-                }));
-                window.location.href = `/book?movie=${movieId}`;
+            const selectedOption = movieSelect.options[movieSelect.selectedIndex];
+            const movieId = parseInt(selectedOption.dataset.movieId);
+            
+            // Close existing connection if any
+            if (socket) {
+                socket.close();
             }
+            
+            // Connect to new movie room
+            connectWebSocket(movieId);
             updateSelectedCount();
         });
 
@@ -371,16 +418,23 @@
             const seats = [...selectedSeats].map(seat => seat.dataset.seat);
             const name = document.getElementById('name').value.trim();
             const email = document.getElementById('email').value.trim();
-            const movie = movieSelect.value;
+            const selectedOption = movieSelect.options[movieSelect.selectedIndex];
+            const movie = selectedOption ? selectedOption.value : '';
+            const movieId = selectedOption ? parseInt(selectedOption.dataset.movieId) : null;
             const amount = parseInt(totalPriceElement.textContent);
-            const movieId = getSelectedMovieId();
-
+            
             if (!name || !email) {
                 alert('Please fill in your name and email');
                 return;
             }
+            
             if (seats.length === 0) {
                 alert('Please select at least one seat');
+                return;
+            }
+
+            if (!movieId) {
+                alert('Please select a movie');
                 return;
             }
 
@@ -389,12 +443,14 @@
             bookBtn.textContent = 'Processing...';
 
             try {
-                // Block seats temporarily
-                socket.send(JSON.stringify({
-                    type: 'block_seats',
-                    movieId,
-                    seats
-                }));
+                // Block seats temporarily through WebSocket
+                if (socket && socket.readyState === WebSocket.OPEN) {
+                    socket.send(JSON.stringify({
+                        type: 'block_seats',
+                        movieId,
+                        seats
+                    }));
+                }
 
                 // Start booking process
                 const response = await fetch('/start-booking', {
@@ -402,24 +458,30 @@
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ name, email, movie, movieId, seats, amount })
+                    body: JSON.stringify({
+                        name,
+                        email,
+                        movie,
+                        movieId,
+                        seats,
+                        amount
+                    })
                 });
 
-                if (response.ok) {
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
                     window.location.href = '/payment';
                 } else {
-                    const data = await response.json();
-                    alert(data.error || 'Booking failed. Please try again.');
-                    bookBtn.disabled = false;
-                    bookBtn.textContent = 'Book Tickets';
+                    throw new Error(data.error || 'Booking failed. Please try again.');
                 }
             } catch (error) {
                 console.error('Booking error:', error);
-                alert('An error occurred. Please try again.');
+                alert(error.message || 'An error occurred. Please try again.');
                 bookBtn.disabled = false;
                 bookBtn.textContent = 'Book Tickets';
             }
         });
     </script>
 </body>
-</html> 
+</html>

@@ -8,7 +8,22 @@ class WebSocketService {
     }
 
     initialize(server) {
-        this.wss = new WebSocket.Server({ server });
+        // Check if we're in a serverless environment
+        const isServerless = process.env.VERCEL === '1';
+        
+        if (isServerless) {
+            console.log('Running in serverless environment - WebSocket server not initialized');
+            return;
+        }
+
+        this.wss = new WebSocket.Server({ 
+            server,
+            path: '/ws',
+            clientTracking: true,
+            perMessageDeflate: false
+        });
+
+        console.log('🔌 WebSocket server initialized');
 
         this.wss.on('connection', (ws, req) => {
             const parameters = url.parse(req.url, true).query;
@@ -23,6 +38,13 @@ class WebSocketService {
                 }
                 this.movieRooms.get(movieId).add(ws);
             }
+
+            // Send initial connection success message
+            ws.send(JSON.stringify({ 
+                type: 'connection', 
+                status: 'connected',
+                movieId 
+            }));
 
             // Handle incoming messages
             ws.on('message', (message) => {
@@ -46,12 +68,24 @@ class WebSocketService {
                 }
             });
 
-            // Send initial connection success message
-            ws.send(JSON.stringify({ type: 'connection', status: 'connected' }));
+            // Handle errors
+            ws.on('error', (error) => {
+                console.error('WebSocket error:', error);
+            });
+        });
+
+        // Handle server errors
+        this.wss.on('error', (error) => {
+            console.error('WebSocket server error:', error);
         });
     }
 
     handleMessage(ws, data) {
+        if (!this.wss) {
+            console.log('WebSocket server not initialized (serverless environment)');
+            return;
+        }
+
         switch (data.type) {
             case 'join_movie':
                 this.handleJoinMovie(ws, data.movieId);
@@ -68,6 +102,8 @@ class WebSocketService {
     }
 
     handleJoinMovie(ws, movieId) {
+        if (!this.wss) return;
+
         // Remove client from all other movie rooms first
         this.movieRooms.forEach((clients, roomId) => {
             clients.delete(ws);
@@ -86,6 +122,7 @@ class WebSocketService {
     }
 
     handleBlockSeats(movieId, seats) {
+        if (!this.wss) return;
         this.broadcastToMovie(movieId, {
             type: 'seat_blocked',
             movieId,
@@ -94,6 +131,7 @@ class WebSocketService {
     }
 
     handleBookSeats(movieId, seats) {
+        if (!this.wss) return;
         this.broadcastToMovie(movieId, {
             type: 'seat_booked',
             movieId,
@@ -102,26 +140,32 @@ class WebSocketService {
     }
 
     broadcastToMovie(movieId, data) {
-        if (this.movieRooms.has(movieId)) {
-            const clients = this.movieRooms.get(movieId);
-            const message = JSON.stringify(data);
-            
-            clients.forEach(client => {
-                if (client.readyState === WebSocket.OPEN) {
-                    client.send(message);
-                }
-            });
-        }
+        if (!this.wss || !this.movieRooms.has(movieId)) return;
+
+        const clients = this.movieRooms.get(movieId);
+        const message = JSON.stringify(data);
+        
+        clients.forEach(client => {
+            if (client.readyState === WebSocket.OPEN) {
+                client.send(message);
+            }
+        });
     }
 
     // Update all clients in a movie room about seat status
     updateSeatStatus(movieId, occupiedSeats, blockedSeats) {
+        if (!this.wss) return;
         this.broadcastToMovie(movieId, {
             type: 'seat_update',
             movieId,
             occupiedSeats,
             blockedSeats
         });
+    }
+
+    // Check if WebSocket server is running
+    isRunning() {
+        return !!this.wss;
     }
 }
 
