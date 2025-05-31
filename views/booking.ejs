@@ -238,7 +238,7 @@
             console.log('Attempting to connect to WebSocket:', wsUrl);
             
             try {
-                socket = new WebSocket(wsUrl, ['websocket']);
+                socket = new WebSocket(wsUrl);
                 
                 socket.onopen = () => {
                     console.log('WebSocket connected successfully');
@@ -260,7 +260,7 @@
                     
                     if (reconnectAttempts < maxReconnectAttempts) {
                         reconnectAttempts++;
-                        const delay = reconnectDelay * Math.pow(2, reconnectAttempts - 1); // Exponential backoff
+                        const delay = Math.min(1000 * Math.pow(2, reconnectAttempts - 1), 30000); // Cap at 30 seconds
                         const message = `🔄 Reconnecting (${reconnectAttempts}/${maxReconnectAttempts})...`;
                         updateConnectionStatus('connecting', message);
                         console.log(message);
@@ -272,7 +272,7 @@
                         setTimeout(() => {
                             reconnectAttempts = 0;
                             connectWebSocket(movieId);
-                        }, 30000); // Try again after 30 seconds
+                        }, 60000); // Try again after 1 minute
                     }
                 };
                 
@@ -310,7 +310,7 @@
                 console.error('Failed to create WebSocket connection:', error);
                 updateConnectionStatus('error', '❌ Connection Failed');
                 // Try to reconnect after a delay
-                setTimeout(() => connectWebSocket(movieId), reconnectDelay);
+                setTimeout(() => connectWebSocket(movieId), 5000);
             }
         }
 

@@ -9,6 +9,10 @@ class WebSocketService {
 
     initialize(server) {
         try {
+            // Check if we're running on Vercel
+            const isVercel = process.env.VERCEL === '1';
+            console.log(`🌍 Initializing WebSocket server (Environment: ${isVercel ? 'Vercel' : 'Local'})`);
+
             // Initialize WebSocket server with more flexible options
             const options = {
                 server,
@@ -17,8 +21,32 @@ class WebSocketService {
                 perMessageDeflate: false,
                 handleProtocols: () => 'websocket',
                 verifyClient: (info, cb) => {
-                    // Allow all connections
-                    cb(true);
+                    // Log verification attempt
+                    console.log('🔐 Verifying WebSocket connection:', {
+                        origin: info.origin,
+                        secure: info.secure,
+                        url: info.req.url
+                    });
+                    
+                    // Allow all connections in development
+                    if (!isVercel) {
+                        cb(true);
+                        return;
+                    }
+
+                    // In production, verify the origin
+                    const origin = info.origin || info.req.headers.origin;
+                    const allowedOrigins = [
+                        'https://movie-k9tyu0ohs-gonugunta-manideeps-projects.vercel.app',
+                        'https://movie-rbix8bkwq-gonugunta-manideeps-projects.vercel.app'
+                    ];
+
+                    if (allowedOrigins.includes(origin)) {
+                        cb(true);
+                    } else {
+                        console.log(`❌ Rejected WebSocket connection from unauthorized origin: ${origin}`);
+                        cb(false, 403, 'Unauthorized origin');
+                    }
                 }
             };
 
@@ -28,7 +56,8 @@ class WebSocketService {
             console.log('🔌 WebSocket server initialized with options:', {
                 path: options.path,
                 clientTracking: options.clientTracking,
-                perMessageDeflate: options.perMessageDeflate
+                perMessageDeflate: options.perMessageDeflate,
+                environment: isVercel ? 'Vercel' : 'Local'
             });
 
             this.wss.on('connection', this.handleConnection.bind(this));

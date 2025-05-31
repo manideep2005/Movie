@@ -8,25 +8,18 @@
     ],
     "routes": [
         {
-            "src": "/ws(.*)",
+            "src": "/ws",
             "dest": "src/app.js",
             "headers": {
                 "Access-Control-Allow-Origin": "*",
                 "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
                 "Access-Control-Allow-Headers": "X-Requested-With, Content-Type, Accept",
-                "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
-                "Pragma": "no-cache",
-                "Expires": "0"
+                "Access-Control-Allow-Credentials": "true"
             }
         },
         {
             "src": "/(.*)",
-            "dest": "src/app.js",
-            "headers": {
-                "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
-                "Pragma": "no-cache",
-                "Expires": "0"
-            }
+            "dest": "src/app.js"
         }
     ],
     "env": {
