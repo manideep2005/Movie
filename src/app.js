@@ -20,6 +20,24 @@ const isVercel = process.env.VERCEL === '1';
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
+// Security headers middleware
+app.use((req, res, next) => {
+    // Set security headers
+    res.set({
+        'X-Content-Type-Options': 'nosniff',
+        'X-Frame-Options': 'DENY',
+        'Referrer-Policy': 'strict-origin-when-cross-origin'
+    });
+
+    // Handle Vercel's security challenges
+    if (req.headers['x-vercel-challenge-token']) {
+        console.log('Handling Vercel security challenge');
+        return next();
+    }
+
+    next();
+});
+
 // Session middleware with secure configuration
 app.use(session({
     secret: process.env.SESSION_SECRET || 'your-secret-key',
@@ -33,6 +51,9 @@ app.use(session({
         domain: isVercel ? '.vercel.app' : undefined
     }
 }));
+
+// Trust proxy for Vercel
+app.set('trust proxy', 1);
 
 // Initialize WebSocket server
 websocketService.initialize(server);
