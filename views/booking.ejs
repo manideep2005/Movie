@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Movie Seat Booking</title>
+    <title>Movie Seat Booking - Real Time</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         .screen {
@@ -15,6 +15,7 @@
             box-shadow: 0 3px 10px rgba(255,255,255,0.7);
             text-align: center;
             line-height: 70px;
+            font-weight: bold;
         }
         .seat-container {
             perspective: 1000px;
@@ -26,23 +27,35 @@
             margin: 5px;
         }
         .seat {
-            background-color: #444451;
+            background-color: #444451; /* Available seats - Black/Dark color */
             height: 30px;
             width: 35px;
             margin: 3px;
             border-top-left-radius: 10px;
             border-top-right-radius: 10px;
             cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
         }
         .seat.selected {
-            background-color: #6feaf6;
+            background-color: #007bff; /* Selected seats - Blue color */
+            border-color: #0056b3;
+            transform: scale(1.1);
         }
         .seat.occupied {
-            background-color: #fff;
+            background-color: #fff; /* Booked/Occupied seats - White color */
+            cursor: not-allowed;
+            border-color: #ddd;
         }
-        .seat:not(.occupied):hover {
+        .seat.temporarily-blocked {
+            background-color: #ffc107; /* Temporarily blocked seats - Yellow */
+            cursor: not-allowed;
+            animation: pulse 2s infinite;
+        }
+        .seat:not(.occupied):not(.temporarily-blocked):hover {
             cursor: pointer;
             transform: scale(1.2);
+            background-color: #5a5a67;
         }
         .showcase .seat:not(.occupied):hover {
             cursor: default;
@@ -50,12 +63,13 @@
         }
         .showcase {
             background: rgba(0,0,0,0.1);
-            padding: 5px 10px;
-            border-radius: 5px;
+            padding: 10px 20px;
+            border-radius: 8px;
             color: #777;
             list-style-type: none;
             display: flex;
-            justify-content: space-between;
+            justify-content: space-around;
+            margin: 20px 0;
         }
         .showcase li {
             display: flex;
@@ -64,29 +78,58 @@
             margin: 0 10px;
         }
         .showcase li small {
-            margin-left: 2px;
+            margin-left: 8px;
+            font-weight: 500;
         }
         .row-label {
-            margin-right: 10px;
+            margin-right: 15px;
             width: 30px;
             text-align: right;
             line-height: 35px;
+            font-weight: bold;
+            color: #ccc;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        .connection-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            z-index: 1000;
+        }
+        .connected {
+            background-color: #28a745;
+            color: white;
+        }
+        .disconnected {
+            background-color: #dc3545;
+            color: white;
         }
     </style>
 </head>
 <body class="bg-dark text-light">
+    <div id="connectionStatus" class="connection-status">Connecting...</div>
     <div class="container mt-5">
-        <h1 class="text-center mb-4">Book Movie Tickets</h1>
+        <h1 class="text-center mb-4">🎬 Movie Seat Booking</h1>
 
         <!-- Movie Selection -->
         <div class="row mb-4">
             <div class="col-md-6 mx-auto">
                 <div class="form-group">
-                    <label for="movieSelect">Select Movie</label>
+                    <label for="movieSelect" class="form-label">Select Movie</label>
                     <select class="form-control" id="movieSelect" required>
+                        <option value="" data-price="0" data-id="">Choose a movie...</option>
                         <% movies.forEach(movie => { %>
-                            <option value="<%= movie.name %>" data-price="<%= movie.price %>">
-                                <%= movie.name %> - ₹<%= movie.price %>
+                            <option value="<%- movie.name %>" data-price="<%- movie.price %>" data-id="<%- movie.id %>"
+                                <%- selectedMovie && selectedMovie.id === movie.id ? 'selected' : '' %>>
+                                <%- movie.name %> - ₹<%- movie.price %>
                             </option>
                         <% }); %>
                     </select>
@@ -98,16 +141,17 @@
         <div class="row mb-4">
             <div class="col-md-6 mx-auto">
                 <div class="form-group mb-3">
-                    <label for="name">Your Name</label>
-                    <input type="text" class="form-control" id="name" required>
+                    <label for="name" class="form-label">Your Name</label>
+                    <input type="text" class="form-control" id="name" placeholder="Enter your full name" required>
                 </div>
                 <div class="form-group mb-3">
-                    <label for="email">Email Address</label>
-                    <input type="email" class="form-control" id="email" required>
+                    <label for="email" class="form-label">Email Address</label>
+                    <input type="email" class="form-control" id="email" placeholder="Enter your email" required>
                 </div>
             </div>
         </div>
         
+        <!-- Seat Legend -->
         <ul class="showcase">
             <li>
                 <div class="seat"></div>
@@ -118,14 +162,18 @@
                 <small>Selected</small>
             </li>
             <li>
+                <div class="seat temporarily-blocked"></div>
+                <small>Booking in Progress</small>
+            </li>
+            <li>
                 <div class="seat occupied"></div>
-                <small>Occupied</small>
+                <small>Booked</small>
             </li>
         </ul>
 
+        <!-- Seat Selection Area -->
         <div class="seat-container">
-            <div class="screen">SCREEN</div>
-            
+            <div class="screen">🎬 SCREEN 🎬</div>
             <% const rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q']; %>
             <% rows.forEach(row => { %>
                 <div class="d-flex align-items-center">
@@ -139,16 +187,135 @@
             <% }); %>
         </div>
 
+        <!-- Booking Summary -->
         <div class="text-center mt-4">
-            <p>Selected Seats: <span id="selected-seats"></span></p>
-            <p>Total Price: ₹<span id="total-price">0</span></p>
-            <button class="btn btn-primary" id="book-btn">Book Tickets</button>
+            <p>Selected Seats: <span id="selected-seats">None selected</span></p>
+            <p>Total Amount: ₹<span id="total-price">0</span></p>
+            <button class="btn btn-primary btn-lg" id="book-btn" disabled>Book Tickets</button>
         </div>
     </div>
 
     <script>
+        // Initialize seat status from server data
+        const occupiedSeats = new Set(JSON.parse('<%- JSON.stringify(occupiedSeats || []) %>'));
+        const blockedSeats = new Set(JSON.parse('<%- JSON.stringify(blockedSeats || []) %>'));
+
+        // Initialize WebSocket connection
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsHost = window.location.host;
+        const wsUrl = `${wsProtocol}//${wsHost}/ws?movieId=<%= selectedMovie ? selectedMovie.id : '' %>`;
+        console.log('Connecting to WebSocket:', wsUrl);
+
+        // Add reconnection logic
+        let reconnectAttempts = 0;
+        const maxReconnectAttempts = 5;
+        const reconnectInterval = 3000; // 3 seconds
+
+        function connectWebSocket() {
+            const ws = new WebSocket(wsUrl);
+            
+            ws.onopen = () => {
+                console.log('🔌 WebSocket connected');
+                document.getElementById('connectionStatus').textContent = '🟢 Connected';
+                document.getElementById('connectionStatus').className = 'connection-status connected';
+                reconnectAttempts = 0; // Reset attempts on successful connection
+            };
+
+            ws.onclose = (event) => {
+                console.log('WebSocket disconnected:', event.code, event.reason);
+                document.getElementById('connectionStatus').textContent = '🔴 Disconnected';
+                document.getElementById('connectionStatus').className = 'connection-status disconnected';
+
+                // Try to reconnect if not at max attempts
+                if (reconnectAttempts < maxReconnectAttempts) {
+                    reconnectAttempts++;
+                    console.log(`Reconnecting... Attempt ${reconnectAttempts}/${maxReconnectAttempts}`);
+                    setTimeout(connectWebSocket, reconnectInterval);
+                } else {
+                    console.log('Max reconnection attempts reached');
+                    document.getElementById('connectionStatus').textContent = '🔴 Connection Failed';
+                }
+            };
+
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                handleWebSocketMessage(data);
+            };
+
+            return ws;
+        }
+
+        const socket = connectWebSocket();
+
+        function handleWebSocketMessage(data) {
+            switch (data.type) {
+                case 'seat_update':
+                    updateSeatsDisplay(data.occupiedSeats, data.blockedSeats);
+                    break;
+                case 'seat_blocked':
+                    markSeatsAsBlocked(data.seats);
+                    break;
+                case 'seat_booked':
+                    markSeatsAsOccupied(data.seats);
+                    break;
+            }
+        }
+
+        function updateSeatsDisplay(newOccupiedSeats, newBlockedSeats) {
+            // Reset all seats to available first
+            document.querySelectorAll('.seat').forEach(seat => {
+                const seatId = seat.dataset.seat;
+                seat.className = 'seat';
+                
+                if (newOccupiedSeats.includes(seatId)) {
+                    seat.classList.add('occupied');
+                } else if (newBlockedSeats.includes(seatId)) {
+                    seat.classList.add('temporarily-blocked');
+                }
+            });
+            updateSelectedCount();
+        }
+
+        function markSeatsAsBlocked(seats) {
+            seats.forEach(seatId => {
+                const seat = document.querySelector(`[data-seat="${seatId}"]`);
+                if (seat && !seat.classList.contains('occupied')) {
+                    seat.classList.remove('selected');
+                    seat.classList.add('temporarily-blocked');
+                }
+            });
+            updateSelectedCount();
+        }
+
+        function markSeatsAsOccupied(seats) {
+            seats.forEach(seatId => {
+                const seat = document.querySelector(`[data-seat="${seatId}"]`);
+                if (seat) {
+                    seat.classList.remove('selected', 'temporarily-blocked');
+                    seat.classList.add('occupied');
+                }
+            });
+            updateSelectedCount();
+        }
+
+        // Initialize seats on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('.seat').forEach(seat => {
+                const seatId = seat.dataset.seat;
+                if (occupiedSeats.has(seatId)) {
+                    seat.classList.add('occupied');
+                } else if (blockedSeats.has(seatId)) {
+                    seat.classList.add('temporarily-blocked');
+                }
+            });
+        });
+
+        // UI Elements
         const container = document.querySelector('.seat-container');
-        const seats = document.querySelectorAll('.row .seat:not(.occupied)');
         const selectedSeatsElement = document.getElementById('selected-seats');
         const totalPriceElement = document.getElementById('total-price');
         const bookBtn = document.getElementById('book-btn');
@@ -156,7 +323,12 @@
 
         function getSelectedMoviePrice() {
             const selectedOption = movieSelect.options[movieSelect.selectedIndex];
-            return parseInt(selectedOption.dataset.price);
+            return parseInt(selectedOption.dataset.price) || 0;
+        }
+
+        function getSelectedMovieId() {
+            const selectedOption = movieSelect.options[movieSelect.selectedIndex];
+            return selectedOption.dataset.id;
         }
 
         function updateSelectedCount() {
@@ -164,66 +336,89 @@
             const selectedSeatsArray = [...selectedSeats].map(seat => seat.dataset.seat);
             const pricePerSeat = getSelectedMoviePrice();
             
-            selectedSeatsElement.textContent = selectedSeatsArray.join(', ');
+            selectedSeatsElement.textContent = selectedSeatsArray.length > 0 ? selectedSeatsArray.join(', ') : 'None selected';
             totalPriceElement.textContent = selectedSeatsArray.length * pricePerSeat;
+            
+            bookBtn.disabled = selectedSeatsArray.length === 0 || !getSelectedMovieId();
         }
 
+        // Event Listeners
         container.addEventListener('click', (e) => {
-            if (e.target.classList.contains('seat') && !e.target.classList.contains('occupied')) {
+            if (e.target.classList.contains('seat') && 
+                !e.target.classList.contains('occupied') && 
+                !e.target.classList.contains('temporarily-blocked')) {
+                
                 e.target.classList.toggle('selected');
                 updateSelectedCount();
             }
         });
 
-        movieSelect.addEventListener('change', updateSelectedCount);
+        movieSelect.addEventListener('change', () => {
+            const movieId = getSelectedMovieId();
+            if (movieId) {
+                // Join new movie room
+                socket.send(JSON.stringify({
+                    type: 'join_movie',
+                    movieId: movieId
+                }));
+                window.location.href = `/book?movie=${movieId}`;
+            }
+            updateSelectedCount();
+        });
 
-        bookBtn.addEventListener('click', () => {
+        bookBtn.addEventListener('click', async () => {
             const selectedSeats = document.querySelectorAll('.row .seat.selected');
             const seats = [...selectedSeats].map(seat => seat.dataset.seat);
-            const name = document.getElementById('name').value;
-            const email = document.getElementById('email').value;
+            const name = document.getElementById('name').value.trim();
+            const email = document.getElementById('email').value.trim();
             const movie = movieSelect.value;
             const amount = parseInt(totalPriceElement.textContent);
-            
+            const movieId = getSelectedMovieId();
+
             if (!name || !email) {
                 alert('Please fill in your name and email');
                 return;
             }
-            
             if (seats.length === 0) {
                 alert('Please select at least one seat');
                 return;
             }
 
-            // Convert seats to array before sending
-            const bookingData = {
-                name,
-                email,
-                movie,
-                seats: seats, // This ensures seats is sent as an array
-                amount
-            };
+            // Disable button to prevent multiple clicks
+            bookBtn.disabled = true;
+            bookBtn.textContent = 'Processing...';
 
-            // Submit booking
-            fetch('/book', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(bookingData)
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    window.location.href = '/success';
+            try {
+                // Block seats temporarily
+                socket.send(JSON.stringify({
+                    type: 'block_seats',
+                    movieId,
+                    seats
+                }));
+
+                // Start booking process
+                const response = await fetch('/start-booking', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ name, email, movie, movieId, seats, amount })
+                });
+
+                if (response.ok) {
+                    window.location.href = '/payment';
                 } else {
+                    const data = await response.json();
                     alert(data.error || 'Booking failed. Please try again.');
+                    bookBtn.disabled = false;
+                    bookBtn.textContent = 'Book Tickets';
                 }
-            })
-            .catch(error => {
-                console.error('Error:', error);
+            } catch (error) {
+                console.error('Booking error:', error);
                 alert('An error occurred. Please try again.');
-            });
+                bookBtn.disabled = false;
+                bookBtn.textContent = 'Book Tickets';
+            }
         });
     </script>
 </body>

@@ -1,4 +1,4 @@
-const fs = require('fs');
+/*const fs = require('fs');
 const path = require('path');
 
 // In-memory storage for Vercel environment
@@ -82,4 +82,4 @@ const getBookingLogs = () => {
 module.exports = {
     logBooking,
     getBookingLogs
-}; 
+}; */
