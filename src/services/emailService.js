@@ -10,9 +10,8 @@ const transporter = nodemailer.createTransport({
         user: process.env.EMAIL_USER || 'w25087926@gmail.com',
         pass: process.env.EMAIL_PASS || 'ncrewxbcwgxmpxcq'
     },
-    tls: {
-        rejectUnauthorized: false // Accept self-signed certificates
-    }
+    debug: true, // Enable debug logging
+    logger: true // Enable built-in logger
 });
 
 // Function to format currency
@@ -51,6 +50,14 @@ const getBaseUrl = () => {
 // Function to send confirmation email
 const sendBookingConfirmation = async (booking) => {
     try {
+        console.log('📧 Starting email send process...');
+        console.log('Email Configuration:', {
+            user: process.env.EMAIL_USER || 'w25087926@gmail.com',
+            host: 'smtp.gmail.com',
+            port: 465,
+            secure: true
+        });
+
         // Ensure seats is an array
         const seatsArray = Array.isArray(booking.seats) ? booking.seats : [booking.seats];
         const formattedAmount = formatCurrency(booking.amount);
@@ -61,6 +68,7 @@ const sendBookingConfirmation = async (booking) => {
 
         // Generate ticket download URL with proper base URL
         const baseUrl = getBaseUrl();
+        console.log('🔗 Base URL:', baseUrl);
         const ticketUrl = `${baseUrl}/download-ticket/${booking._id}`;
         const qrCodeUrl = getQRCodeUrl(booking._id);
 
@@ -70,6 +78,7 @@ const sendBookingConfirmation = async (booking) => {
 
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
+                console.log(`📧 Attempt ${attempt}: Preparing to send email...`);
                 const mailOptions = {
                     from: {
                         name: 'Cinema Booking',
@@ -139,17 +148,25 @@ const sendBookingConfirmation = async (booking) => {
                     `
                 };
 
-                console.log(`📧 Attempt ${attempt}: Sending confirmation email to:`, booking.email);
+                console.log(`📧 Attempt ${attempt}: Sending email to:`, booking.email);
                 const info = await transporter.sendMail(mailOptions);
                 console.log('✅ Email sent successfully:', info.messageId);
+                console.log('📬 Preview URL:', nodemailer.getTestMessageUrl(info));
                 return { success: true, messageId: info.messageId };
             } catch (error) {
                 console.error(`❌ Attempt ${attempt} failed:`, error);
+                console.error('Error details:', {
+                    code: error.code,
+                    command: error.command,
+                    response: error.response,
+                    responseCode: error.responseCode
+                });
                 lastError = error;
                 
                 // Wait before retrying (exponential backoff)
                 if (attempt < maxRetries) {
                     const delay = attempt * 1000; // 1s, 2s, 3s
+                    console.log(`⏳ Waiting ${delay}ms before retry...`);
                     await new Promise(resolve => setTimeout(resolve, delay));
                 }
             }
@@ -165,6 +182,7 @@ const sendBookingConfirmation = async (booking) => {
 
 // Verify connection configuration with retries
 const verifyConnection = async () => {
+    console.log('🔍 Verifying SMTP connection...');
     const maxRetries = 3;
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
@@ -173,13 +191,23 @@ const verifyConnection = async () => {
             return;
         } catch (error) {
             console.error(`❌ SMTP connection error (attempt ${attempt}/${maxRetries}):`, error);
+            console.error('Error details:', {
+                code: error.code,
+                command: error.command,
+                response: error.response,
+                responseCode: error.responseCode
+            });
             if (attempt < maxRetries) {
-                await new Promise(resolve => setTimeout(resolve, attempt * 1000));
+                const delay = attempt * 1000;
+                console.log(`⏳ Waiting ${delay}ms before retry...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
             }
         }
     }
+    console.error('❌ Failed to verify SMTP connection after all retries');
 };
 
+// Verify connection on startup
 verifyConnection();
 
 module.exports = {
