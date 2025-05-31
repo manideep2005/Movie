@@ -65,9 +65,30 @@ app.use(express.static(path.join(__dirname, '../public')));
 
 // Movie data (in-memory for demo)
 const movies = [
-    { id: 1, name: 'Inception', price: 250 },
-    { id: 2, name: 'The Dark Knight', price: 300 },
-    { id: 3, name: 'Interstellar', price: 280 }
+    { 
+        id: 1, 
+        name: 'Inception', 
+        price: 250,
+        posterPath: '/9gk7adHYeDvHkCSEqAvQNLV5Uge.jpg',  // Inception poster
+        rating: '8.8',
+        duration: '2h 28min'
+    },
+    { 
+        id: 2, 
+        name: 'The Dark Knight', 
+        price: 300,
+        posterPath: '/qJ2tW6WMUDux911r6m7haRef0WH.jpg',  // Dark Knight poster
+        rating: '9.0',
+        duration: '2h 32min'
+    },
+    { 
+        id: 3, 
+        name: 'Interstellar', 
+        price: 280,
+        posterPath: '/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg',  // Interstellar poster
+        rating: '8.6',
+        duration: '2h 49min'
+    }
 ];
 
 // Routes

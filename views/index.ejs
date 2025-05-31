@@ -3,118 +3,117 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cinema Booking</title>
+    <title>Movie Ticket Booking</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body {
-            font-family: 'Segoe UI', sans-serif;
             background: linear-gradient(120deg, #1e3c72, #2a5298);
             color: white;
             min-height: 100vh;
-            margin: 0;
-            padding-bottom: 2rem;
+            padding-bottom: 40px;
         }
-
-        .container {
-            padding: 2rem;
+        .navbar {
+            background: rgba(0, 0, 0, 0.2) !important;
+            backdrop-filter: blur(10px);
+            margin-bottom: 2rem;
         }
-
-        h1 {
-            font-size: 2.5rem;
-            margin-bottom: 1rem;
-        }
-
         .movie-card {
-            transition: transform 0.3s, box-shadow 0.3s;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
             height: 100%;
-            background: rgba(0, 0, 0, 0.4) !important;
-            border: 1px solid rgba(255, 255, 255, 0.1) !important;
         }
-
         .movie-card:hover {
             transform: translateY(-5px);
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
         }
-
         .movie-image {
+            width: 100%;
             height: 400px;
             object-fit: cover;
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         }
-
-        .card-body {
+        .movie-info {
             padding: 1.5rem;
         }
-
-        .movie-description {
-            font-size: 0.9rem;
-            opacity: 0.8;
+        .movie-title {
+            font-size: 1.5rem;
             margin-bottom: 1rem;
-            height: 80px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            display: -webkit-box;
-            -webkit-line-clamp: 3;
-            -webkit-box-orient: vertical;
+            color: white;
         }
-
-        .price-tag {
+        .movie-price {
             font-size: 1.2rem;
-            font-weight: bold;
-            color: #00b894;
-            margin-bottom: 1rem;
+            color: #6feaf6;
+            margin-bottom: 1.5rem;
         }
-
         .book-btn {
-            background-color: #00b894;
-            border: none;
+            width: 100%;
             padding: 0.8rem;
-            font-weight: 600;
-            letter-spacing: 0.5px;
+            background: linear-gradient(45deg, #6feaf6, #4bc0c8);
+            border: none;
+            border-radius: 8px;
+            color: #1e3c72;
+            font-weight: bold;
             transition: all 0.3s ease;
         }
-
         .book-btn:hover {
-            background-color: #019875;
-            transform: translateY(-2px);
+            background: linear-gradient(45deg, #4bc0c8, #6feaf6);
+            transform: scale(1.02);
         }
-
-        .navbar {
-            background: rgba(0, 0, 0, 0.2) !important;
-            backdrop-filter: blur(10px);
+        .page-title {
+            text-align: center;
+            margin-bottom: 3rem;
+            font-size: 2.5rem;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+        .movie-rating {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+        }
+        .movie-duration {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
         }
     </style>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
+    <nav class="navbar navbar-expand-lg navbar-dark">
         <div class="container">
             <a class="navbar-brand" href="/">🎬 Cinema Booking</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
-                    <li class="nav-item">
-                        <a class="nav-link" href="/admin">User Panel</a>
-                    </li>
-                </ul>
-            </div>
         </div>
     </nav>
 
-    <div class="container" style="margin-top: 80px;">
-        <h1 class="text-center mb-5">Now Showing</h1>
+    <div class="container">
+        <h1 class="page-title">🎬 Now Showing</h1>
         
         <div class="row g-4">
             <% movies.forEach(movie => { %>
-                <div class="col-md-3">
-                    <div class="movie-card card text-light">
-                        <img src="<%= movie.image %>" class="movie-image" alt="<%= movie.name %>" onerror="this.src='/images/default-movie.jpg'">
-                        <div class="card-body">
-                            <h5 class="card-title mb-3"><%= movie.name %></h5>
-                            <p class="movie-description"><%= movie.description %></p>
-                            <div class="price-tag">₹<%= movie.price %></div>
-                            <a href="/book?movie=<%= movie.id %>" class="btn btn-primary book-btn w-100">Book Now</a>
+                <div class="col-md-4">
+                    <div class="movie-card">
+                        <div class="position-relative">
+                            <img src="<%= movie.image || `https://image.tmdb.org/t/p/w500${movie.posterPath || '/wwemzKWzjKYJFfCeiB57q3r4Bcm.png'}` %>" 
+                                 alt="<%= movie.name %>" 
+                                 class="movie-image">
+                            <div class="movie-rating">⭐ <%= movie.rating || '8.5' %></div>
+                        </div>
+                        <div class="movie-info">
+                            <h3 class="movie-title"><%= movie.name %></h3>
+                            <div class="movie-duration">
+                                <i class="far fa-clock"></i> <%= movie.duration || '2h 30min' %>
+                            </div>
+                            <div class="movie-price">₹<%= movie.price %></div>
+                            <a href="/book?movie=<%= movie.id %>" class="btn book-btn">
+                                Book Now
+                            </a>
                         </div>
                     </div>
                 </div>
@@ -123,5 +122,6 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://kit.fontawesome.com/your-font-awesome-kit.js"></script>
 </body>
 </html> 

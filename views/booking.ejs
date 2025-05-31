@@ -19,6 +19,27 @@
             color: #fff;
             text-shadow: 0 0 10px rgba(255,255,255,0.5);
             border-radius: 5px;
+            position: relative;
+            overflow: hidden;
+        }
+        .screen::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                45deg,
+                rgba(255,255,255,0.1) 0%,
+                rgba(255,255,255,0.2) 50%,
+                rgba(255,255,255,0.1) 100%
+            );
+            animation: screenGlow 3s ease-in-out infinite;
+        }
+        @keyframes screenGlow {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
         }
         .seat-container {
             perspective: 1000px;
@@ -42,6 +63,7 @@
             cursor: pointer;
             transition: all 0.3s ease;
             position: relative;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
         .seat:hover::after {
             content: attr(data-seat);
@@ -55,6 +77,7 @@
             border-radius: 3px;
             font-size: 12px;
             white-space: nowrap;
+            z-index: 100;
         }
         .seat.selected {
             background-color: #6feaf6;
@@ -62,18 +85,20 @@
             box-shadow: 0 0 10px rgba(111,234,246,0.5);
         }
         .seat.occupied {
-            background-color: #fff;
+            background-color: #ffffff;
             cursor: not-allowed;
-            opacity: 0.7;
+            box-shadow: 0 2px 4px rgba(255,255,255,0.3);
         }
         .seat.temporarily-blocked {
             background-color: #ffc107;
             cursor: not-allowed;
             animation: pulse 2s infinite;
+            box-shadow: 0 0 10px rgba(255,193,7,0.5);
         }
         .seat:not(.occupied):not(.temporarily-blocked):hover {
             cursor: pointer;
             transform: scale(1.2);
+            background-color: #6feaf6;
         }
         .showcase {
             background: rgba(0,0,0,0.3);
