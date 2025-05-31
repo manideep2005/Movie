@@ -179,7 +179,8 @@ app.post('/payment-preview-success', async (req, res) => {
                     error: 'Failed to process payment. Please try again.'
                 });
             }
-            res.redirect('/success');
+            // Use res.redirect with 303 status to force GET request
+            res.redirect(303, '/success');
         });
     } catch (error) {
         console.error('Payment preview error:', error);
