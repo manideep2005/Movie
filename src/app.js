@@ -9,6 +9,7 @@ const ticketService = require('./services/ticketService');
 const seatService = require('./services/seatService');
 const websocketService = require('./services/websocketService');
 const { logBooking, getBookingLogs } = require('./services/bookingLogger');
+const fs = require('fs');
 
 const app = express();
 const server = http.createServer(app);
@@ -32,7 +33,7 @@ app.use(session({
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// Security headers middleware
+// Security headers middleware with anti-scanning protection
 app.use((req, res, next) => {
     // Set security headers
     res.set({
@@ -47,6 +48,40 @@ app.use((req, res, next) => {
         return next();
     }
 
+    // Anti-scanning protection
+    const userAgent = req.headers['user-agent'] || '';
+    const requestsPerMinute = 30; // Adjust based on your needs
+    
+    // Check for suspicious patterns
+    if (
+        // Check for known scanner/bot user agents
+        /bot|crawler|spider|scan|nessus|nmap|nikto|qualys|burp|zap|acunetix|metasploit/i.test(userAgent) ||
+        // Check for missing or suspicious user agent
+        !userAgent || userAgent.length < 10 ||
+        // Check for rapid requests (implement with a rate limiter in production)
+        req.session.requestCount && req.session.requestCount > requestsPerMinute
+    ) {
+        console.log(`Potential scanning detected: ${userAgent}`);
+        return res.status(403).render('error', {
+            title: 'Access Denied',
+            error: 'Automated scanning is not allowed.'
+        });
+    }
+    
+    // Track request count for rate limiting
+    if (!req.session.requestCount) {
+        req.session.requestCount = 1;
+        req.session.requestTimestamp = Date.now();
+    } else {
+        // Reset counter after 1 minute
+        if (Date.now() - req.session.requestTimestamp > 60000) {
+            req.session.requestCount = 1;
+            req.session.requestTimestamp = Date.now();
+        } else {
+            req.session.requestCount++;
+        }
+    }
+
     next();
 });
 
@@ -59,6 +94,13 @@ websocketService.initialize(server);
 // Set view engine
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, '../views'));
+
+// Debug logging for view resolution
+app.use((req, res, next) => {
+    console.log('🔍 Views directory:', app.get('views'));
+    console.log('📁 Available views:', fs.readdirSync(app.get('views')));
+    next();
+});
 
 // Serve static files
 app.use(express.static(path.join(__dirname, '../public')));
@@ -144,8 +186,11 @@ app.post('/check-seats', (req, res) => {
 // Payment page
 app.get('/payment', (req, res) => {
     const booking = req.session.pendingBooking;
-    console.log('Payment page - Session:', req.session);
-    console.log('Payment page - Booking:', booking);
+    // Sanitize log output to prevent log injection
+    const safeSession = JSON.stringify(req.session).replace(/[\r\n]+/g, ' ');
+    const safeBooking = JSON.stringify(booking).replace(/[\r\n]+/g, ' ');
+    console.log('Payment page - Session:', safeSession);
+    console.log('Payment page - Booking:', safeBooking);
     
     if (!booking) {
         console.log('No pending booking found in session');
@@ -231,9 +276,97 @@ app.get('/success', (req, res) => {
         return res.redirect('/?error=no_booking');
     }
 
-    // Clear the session data after rendering
+    // Store email in session for dashboard access
+    if (booking.email) {
+        req.session.userEmail = booking.email;
+    }
+
+    // Clear the booking from session after rendering
     req.session.lastBooking = null;
-    res.render('success', { booking });
+    
+    res.render('success', { 
+        booking,
+        dashboardUrl: `/dashboard?email=${encodeURIComponent(booking.email)}`
+    });
+});
+
+// User dashboard route - with user's actual bookings
+app.get('/dashboard', (req, res, next) => {
+    console.log('🎯 Dashboard route hit');
+    try {
+        // Get all bookings - always fetch fresh data
+        const allBookings = getBookingLogs();
+        
+        // For demo purposes, we'll use the email from the query param, session, or a default
+        const userEmail = req.query.email || req.session.userEmail || 'manideep.gonugunta1802@gmail.com';
+        
+        // Store email in session for future use
+        req.session.userEmail = userEmail;
+        
+        // Filter bookings for this user
+        const userBookings = allBookings.filter(booking => booking.email === userEmail);
+        
+        console.log(`📊 Dashboard - Found ${userBookings.length} bookings for ${userEmail}`);
+        
+        // Add cache control headers to prevent caching
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+        
+        // Check if the view exists
+        const viewPath = path.join(app.get('views'), 'dashboard-simple.ejs');
+        if (!fs.existsSync(viewPath)) {
+            console.error('❌ View file not found:', viewPath);
+            throw new Error(`View file not found: dashboard-simple.ejs`);
+        }
+        
+        console.log('🎨 Rendering dashboard with:', {
+            bookingsCount: userBookings.length,
+            userEmail,
+            viewPath
+        });
+        
+        // Render the simple dashboard with the user's bookings
+        res.render('dashboard-simple', { 
+            bookings: userBookings,
+            userEmail,
+            timestamp: new Date().getTime() // Add timestamp to force fresh data
+        });
+    } catch (error) {
+        console.error('❌ Dashboard error:', error);
+        next(error); // Pass error to error handling middleware
+    }
+});
+
+// Save user preferences
+app.post('/save-preferences', (req, res) => {
+    try {
+        const { theme, notifications, language } = req.body;
+        const userEmail = req.session.userEmail || req.body.email;
+        
+        if (!userEmail) {
+            return res.status(400).json({ error: 'User not authenticated' });
+        }
+        
+        // Save preferences to session
+        req.session.userPreferences = {
+            theme: theme || 'dark',
+            notifications: notifications === 'true',
+            language: language || 'en'
+        };
+        req.session.userEmail = userEmail;
+        
+        req.session.save((err) => {
+            if (err) {
+                console.error('Failed to save preferences:', err);
+                return res.status(500).json({ error: 'Failed to save preferences' });
+            }
+            res.json({ success: true });
+        });
+    } catch (error) {
+        console.error('Error saving preferences:', error);
+        res.status(500).json({ error: 'Failed to save preferences' });
+    }
 });
 
 // Admin route

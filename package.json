@@ -1,5 +1,5 @@
 {
-  "name": "cinema-booking",
+  "name": "@amzn/cinema-booking",
   "version": "1.0.0",
   "description": "A cinema ticket booking system",
   "main": "src/app.js",

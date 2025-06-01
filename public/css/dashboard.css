@@ -1,0 +1,117 @@
+/* Dashboard specific styles */
+:root {
+    --primary-color: #1e3c72;
+    --secondary-color: #2a5298;
+    --accent-color: #6feaf6;
+    --text-color: #ffffff;
+    --bg-color: linear-gradient(120deg, #1e3c72, #2a5298);
+    --card-bg: rgba(255, 255, 255, 0.1);
+    --card-border: rgba(255, 255, 255, 0.2);
+}
+
+[data-theme="light"] {
+    --primary-color: #4a69bd;
+    --secondary-color: #6a89cc;
+    --accent-color: #1e3799;
+    --text-color: #333333;
+    --bg-color: linear-gradient(120deg, #f5f7fa, #c3cfe2);
+    --card-bg: rgba(255, 255, 255, 0.8);
+    --card-border: rgba(0, 0, 0, 0.1);
+}
+
+body {
+    background: var(--bg-color);
+    color: var(--text-color);
+    min-height: 100vh;
+    padding-bottom: 40px;
+    transition: all 0.3s ease;
+}
+
+.dashboard-card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 20px;
+    backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+}
+
+.dashboard-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+}
+
+.ticket-card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 15px;
+    transition: all 0.3s ease;
+}
+
+.ticket-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.nav-tabs {
+    border-bottom: 1px solid var(--card-border);
+}
+
+.nav-tabs .nav-link {
+    color: var(--text-color);
+    border: none;
+    border-bottom: 3px solid transparent;
+    padding: 10px 20px;
+}
+
+.nav-tabs .nav-link.active {
+    color: var(--accent-color);
+    background: transparent;
+    border-bottom: 3px solid var(--accent-color);
+}
+
+.form-check-input {
+    background-color: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.form-check-input:checked {
+    background-color: var(--accent-color);
+    border-color: var(--accent-color);
+}
+
+.form-select, .form-control {
+    background-color: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.3);
+    color: var(--text-color);
+}
+
+.form-select option {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.badge-upcoming {
+    background-color: #28a745;
+    color: white;
+}
+
+.badge-past {
+    background-color: #6c757d;
+    color: white;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 30px;
+    opacity: 0.7;
+}
+
+.empty-icon {
+    font-size: 3rem;
+    margin-bottom: 15px;
+    opacity: 0.5;
+}

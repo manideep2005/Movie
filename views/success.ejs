@@ -178,6 +178,10 @@
                 <i class="fas fa-download"></i>
                 Download Ticket
             </a>
+            <a href="/dashboard?email=<%= encodeURIComponent(booking.email) %>" class="btn btn-info">
+                <i class="fas fa-user"></i>
+                My Tickets
+            </a>
             <button onclick="window.print()" class="btn btn-light">
                 <i class="fas fa-print"></i>
                 Print Ticket
