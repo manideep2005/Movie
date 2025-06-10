@@ -99,8 +99,23 @@
                         <a class="nav-link active" href="/"><i class="fas fa-home"></i> Home</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/dashboard?email=w25087926@gmail.com"><i class="fas fa-user"></i> Dashboard</a>
+                        <a class="nav-link" href="/dashboard"><i class="fas fa-user"></i> Dashboard</a>
                     </li>
+                    <% if (typeof user !== 'undefined' && user) { %>
+                        <li class="nav-item">
+                            <span class="nav-link">Welcome, <%= user.email %></span>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/logout"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                        </li>
+                    <% } else { %>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/signup"><i class="fas fa-user-plus"></i> Sign Up</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/signin"><i class="fas fa-sign-in-alt"></i> Sign In</a>
+                        </li>
+                    <% } %>
                 </ul>
             </div>
         </div>

@@ -10,6 +10,9 @@ const seatService = require('./services/seatService');
 const websocketService = require('./services/websocketService');
 const { logBooking, getBookingLogs } = require('./services/bookingLogger');
 const fs = require('fs');
+const userService = require('./services/userService'); // Added userService
+// bcrypt is not directly used in app.js for hashing here, it's used in userService
+// const bcrypt = require('bcrypt'); // Commented out as hashing is in userService
 
 const app = express();
 const server = http.createServer(app);
@@ -135,7 +138,103 @@ const movies = [
 
 // Routes
 app.get('/', (req, res) => {
-    res.render('index', { movies });
+    res.render('index', { movies, user: req.session.user });
+});
+
+// GET /signup - Render signup page
+app.get('/signup', (req, res) => {
+  res.render('signup', { error: null, user: req.session.user });
+});
+
+// POST /signup - Handle user signup
+app.post('/signup', async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.render('signup', { error: 'Email and password are required.', user: req.session.user });
+  }
+
+  try {
+    const existingUser = userService.findUserByEmail(email);
+    if (existingUser) {
+      return res.render('signup', { error: 'User already exists.', user: req.session.user });
+    }
+
+    // userService.addUser now handles hashing
+    const newUser = await userService.addUser({ email, password });
+
+    req.session.user = { email: newUser.email }; // Store user in session
+    req.session.save(err => { // Explicitly save session
+        if (err) {
+            console.error('Session save error:', err);
+            return res.render('signup', { error: 'An error occurred during signup. Please try again.', user: null });
+        }
+        res.redirect('/'); // Redirect to home page
+    });
+  } catch (error) {
+    console.error('Error during signup:', error);
+    res.render('signup', { error: 'An error occurred during signup. Please try again.', user: null });
+  }
+});
+
+// GET /logout - Handle user logout
+app.get('/logout', (req, res) => {
+  if (req.session) {
+    // Destroy the session
+    req.session.destroy(err => {
+      if (err) {
+        // Handle error case
+        console.error('Error destroying session:', err);
+        return res.status(500).render('error', {
+          title: 'Logout Error',
+          error: 'Could not log you out. Please try again.'
+        });
+      }
+      // Redirect to home page after successful logout
+      res.redirect('/');
+    });
+  } else {
+    // If no session, just redirect to home (should not happen with proper session setup)
+    res.redirect('/');
+  }
+});
+
+// GET /signin - Render signin page
+app.get('/signin', (req, res) => {
+  res.render('signin', { error: null, user: req.session.user });
+});
+
+// POST /signin - Handle user signin
+app.post('/signin', async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.render('signin', { error: 'Email and password are required.', user: req.session.user });
+  }
+
+  try {
+    const user = userService.findUserByEmail(email);
+    if (!user) {
+      return res.render('signin', { error: 'Invalid email or password.', user: req.session.user });
+    }
+
+    const passwordMatches = await userService.verifyPassword(password, user.password);
+    if (!passwordMatches) {
+      return res.render('signin', { error: 'Invalid email or password.', user: req.session.user });
+    }
+
+    req.session.user = { email: user.email }; // Store user in session
+    req.session.save(err => { // Explicitly save session
+        if (err) {
+            console.error('Session save error:', err);
+            return res.render('signin', { error: 'An error occurred during signin. Please try again.', user: null });
+        }
+        res.redirect('/'); // Redirect to home page
+    });
+  } catch (error) {
+    console.error('Error during signin:', error);
+    res.render('signin', { error: 'An error occurred during signin. Please try again.', user: null });
+  }
 });
 
 app.get('/book', (req, res) => {
@@ -293,15 +392,19 @@ app.get('/success', (req, res) => {
 // User dashboard route - with user's actual bookings
 app.get('/dashboard', (req, res, next) => {
     console.log('🎯 Dashboard route hit');
+
+    // Check if user is logged in
+    if (!req.session.user || !req.session.user.email) {
+        // User is not logged in, redirect to signin page
+        return res.redirect('/signin');
+    }
+
     try {
         // Get all bookings - always fetch fresh data
         const allBookings = getBookingLogs();
         
-        // For demo purposes, we'll use the email from the query param, session, or a default
-        const userEmail = req.query.email || req.session.userEmail || 'manideep.gonugunta1802@gmail.com';
-        
-        // Store email in session for future use
-        req.session.userEmail = userEmail;
+        // Use the email from the session
+        const userEmail = req.session.user.email;
         
         // Filter bookings for this user
         const userBookings = allBookings.filter(booking => booking.email === userEmail);
@@ -329,7 +432,8 @@ app.get('/dashboard', (req, res, next) => {
         // Render the simple dashboard with the user's bookings
         res.render('dashboard-simple', { 
             bookings: userBookings,
-            userEmail,
+            userEmail, // This is now req.session.user.email
+            user: req.session.user, // Pass the full user object for consistency in views
             timestamp: new Date().getTime() // Add timestamp to force fresh data
         });
     } catch (error) {
